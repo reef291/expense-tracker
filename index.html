@@ -22,10 +22,15 @@
     <section class="screen" id="screen-amount">
       <div class="screen-top">
         <button type="button" class="icon-btn" id="amount-home-btn" aria-label="לרשימת ההוצאות">☰</button>
+        <span class="amount-screen-total" id="amount-screen-total"></span>
       </div>
 
       <div class="amount-stage">
-        <div class="amount-display">
+        <div class="entry-type-toggle" id="entry-type-toggle">
+          <button type="button" class="entry-type-btn selected" data-type="expense">הוצאה</button>
+          <button type="button" class="entry-type-btn" data-type="income">הכנסה</button>
+        </div>
+        <div class="amount-display" id="amount-display">
           <span class="amount-symbol" id="amount-symbol">₪</span>
           <input type="text" inputmode="decimal" id="amount-input" class="amount-input" placeholder="0" autocomplete="off" />
         </div>
@@ -43,7 +48,7 @@
       <div class="screen-top">
         <button type="button" class="icon-btn" id="category-back-btn" aria-label="חזור">‹</button>
         <h2>קטגוריה</h2>
-        <span class="screen-top-spacer"></span>
+        <button type="button" class="icon-btn" id="category-close-btn" aria-label="סגור וחזור לרשימה">✕</button>
       </div>
       <div class="category-grid" id="category-grid"></div>
     </section>
@@ -52,7 +57,7 @@
       <div class="screen-top">
         <button type="button" class="icon-btn" id="details-back-btn" aria-label="חזור">‹</button>
         <h2>עוד משהו?</h2>
-        <span class="screen-top-spacer"></span>
+        <button type="button" class="icon-btn" id="details-close-btn" aria-label="סגור וחזור לרשימה">✕</button>
       </div>
 
       <div class="details-body">
@@ -135,29 +140,79 @@
         <span class="screen-top-spacer"></span>
       </div>
       <div class="tab-panel">
-        <div id="group-screen-members"></div>
-        <p id="group-screen-empty" class="empty-state" hidden>אין מטיילים בקבוצה הזו עדיין</p>
+        <div class="group-screen-hero">
+          <div class="group-photo-wrap" id="group-photo-wrap">
+            <button type="button" class="group-photo-btn" id="group-photo-btn" aria-label="שינוי תמונת קבוצה"></button>
+            <span class="group-photo-badge">📷</span>
+          </div>
+        </div>
+        <input type="file" accept="image/*" id="group-photo-input" hidden />
+
+        <div class="summary-block">
+          <h3>חיובים</h3>
+          <div id="group-screen-members"></div>
+          <p id="group-screen-empty" class="empty-state" hidden></p>
+        </div>
+
+        <div class="summary-block" id="group-screen-activity-block" hidden>
+          <h3>פעילות</h3>
+          <div id="group-screen-activity"></div>
+        </div>
+
+        <div class="summary-block" id="group-screen-add-existing" hidden>
+          <h3>הוספת מטיילים קיימים</h3>
+          <div class="chips-row" id="group-screen-add-existing-chips"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" id="screen-person">
+      <div class="screen-top">
+        <button type="button" class="icon-btn" id="person-screen-back-btn" aria-label="חזור">‹</button>
+        <button type="button" class="person-screen-title-btn" id="person-screen-title">—</button>
+        <input type="text" class="person-screen-title-btn person-screen-title-input" id="person-screen-title-input" hidden />
+        <span class="screen-top-spacer"></span>
+      </div>
+      <div class="tab-panel">
+        <div class="settle-summary-row">
+          <div class="settle-summary-item">
+            <span class="settle-summary-label">מאזן</span>
+            <span class="settle-summary-value" id="person-screen-balance-value">0 ₪</span>
+          </div>
+        </div>
+        <div id="person-screen-settle-wrap"></div>
+
+        <div class="summary-block">
+          <h3>הוצאות משותפות</h3>
+          <div id="person-screen-expenses"></div>
+          <p id="person-screen-expenses-empty" class="empty-state" hidden>אין עדיין הוצאות משותפות</p>
+        </div>
+
+        <div class="summary-block" id="person-screen-activity-block" hidden>
+          <h3>פעילות</h3>
+          <div id="person-screen-activity"></div>
+        </div>
       </div>
     </section>
 
     <section class="screen" id="screen-home">
       <header class="app-header">
         <button type="button" class="app-title" id="app-title-btn">הוצאות הטיול</button>
-        <div class="total-badge">
+        <input type="text" class="app-title app-title-input" id="app-title-input" placeholder="שם הטיול" hidden />
+        <button type="button" class="total-badge" id="total-badge-btn" aria-label="שינוי מטבע תצוגה">
           <span class="total-label">סה"כ</span>
           <span id="total-amount">0 ₪</span>
-        </div>
+        </button>
       </header>
 
       <nav class="tabs">
-        <button type="button" class="tab-btn selected" data-tab="list">רשימה</button>
-        <button type="button" class="tab-btn" data-tab="summary">סיכומים</button>
-        <button type="button" class="tab-btn" data-tab="settle">קיזוז</button>
+        <button type="button" class="tab-btn selected" data-tab="list">הוצאות</button>
+        <button type="button" class="tab-btn" data-tab="summary">תובנות</button>
+        <button type="button" class="tab-btn" data-tab="settle">קיזוזים</button>
       </nav>
 
       <section class="tab-panel" id="tab-list">
         <div class="list-header">
-          <span id="expense-count"></span>
           <button type="button" id="refresh-btn" title="רענן מהאוטומציה">↻</button>
         </div>
         <div id="days-list"></div>
@@ -165,6 +220,8 @@
       </section>
 
       <section class="tab-panel" id="tab-summary" hidden>
+        <p class="fun-fact" id="fun-fact" hidden></p>
+
         <div class="stat-row">
           <div class="stat-box wide-single">
             <span class="stat-label">היום</span>
@@ -186,9 +243,15 @@
         <div class="summary-block">
           <h3>טווח תאריכים מותאם</h3>
           <div class="range-picker">
-            <input type="date" id="range-from" lang="he" />
+            <div class="date-field-wrap">
+              <span class="date-field-display" id="range-from-display">מתאריך</span>
+              <input type="date" id="range-from" lang="en-GB" />
+            </div>
             <span>עד</span>
-            <input type="date" id="range-to" lang="he" />
+            <div class="date-field-wrap">
+              <span class="date-field-display" id="range-to-display">עד תאריך</span>
+              <input type="date" id="range-to" lang="en-GB" />
+            </div>
           </div>
           <p class="stat-value" id="range-result"></p>
         </div>
@@ -199,12 +262,13 @@
           <div class="pace-header">
             <span class="pace-emoji">💸</span>
             <div class="pace-header-text">
-              <span class="pace-label">הוצאת בטיול</span>
+              <span class="pace-label">הוצאות בטיול</span>
               <span class="pace-total" id="pace-total">0 ₪</span>
             </div>
           </div>
 
           <div class="pace-stats" id="pace-stats"></div>
+          <p class="pace-budget-line" id="pace-budget-line" hidden></p>
 
           <button type="button" class="pace-dates-toggle" id="pace-dates-toggle">📅 הגדרת תאריכי טיול</button>
 
@@ -215,34 +279,60 @@
             </div>
             <button type="button" class="primary-btn pace-dates-save" id="pace-dates-save">שמירה</button>
           </div>
+
+          <button type="button" class="pace-dates-toggle" id="pace-budget-toggle">💰 הגדרת תקציב טיול</button>
+
+          <div class="pace-dates-form" id="pace-budget-form" hidden>
+            <input type="number" inputmode="decimal" id="trip-budget-input" class="clean-input" placeholder="תקציב כולל לטיול (₪)" />
+            <button type="button" class="primary-btn pace-dates-save" id="pace-budget-save">שמירה</button>
+          </div>
         </div>
       </section>
 
       <section class="tab-panel" id="tab-settle" hidden>
-        <div class="summary-block">
-          <h3>קבוצות</h3>
-          <div class="groups-list" id="groups-list"></div>
-        </div>
-
-        <div class="summary-block">
-          <h3>מטיילים</h3>
-          <div class="friends-chips" id="friends-chips"></div>
-          <div class="add-friend-row">
-            <input type="text" id="add-friend-input" class="clean-input" placeholder="שם המטייל…" autocomplete="off" />
-            <select id="add-friend-group-select" class="group-select"></select>
+        <div class="settle-summary-row">
+          <div class="settle-summary-item">
+            <span class="settle-summary-label">אתה חייב</span>
+            <span class="settle-summary-value balance-negative" id="settle-owe-total">0 ₪</span>
           </div>
-          <input type="text" id="new-group-name-input" class="clean-input" placeholder="שם הקבוצה החדשה…" autocomplete="off" hidden />
-          <button type="button" class="add-friend-btn add-friend-btn-wide" id="add-friend-btn">הוספה</button>
+          <div class="settle-summary-item">
+            <span class="settle-summary-label">חייבים לך</span>
+            <span class="settle-summary-value balance-positive" id="settle-owed-total">0 ₪</span>
+          </div>
         </div>
 
         <div class="summary-block">
-          <h3>מי חייב למי</h3>
-          <div id="settle-transfers"></div>
+          <button type="button" class="summary-block-toggle" id="groups-toggle" aria-expanded="true">
+            <h3>קבוצות <span class="summary-block-count" id="groups-count"></span></h3>
+            <span class="summary-block-chevron">▾</span>
+          </button>
+          <div class="summary-block-body" id="groups-body">
+            <div class="summary-block-body-inner">
+              <div class="groups-list" id="groups-list"></div>
+              <div class="add-friend-row">
+                <input type="text" id="add-group-input" class="clean-input" placeholder="שם קבוצה חדשה…" autocomplete="off" />
+                <button type="button" class="add-friend-btn" id="add-group-btn">הוספה</button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div class="summary-block">
-          <h3>מאזן לכל אחד</h3>
-          <div id="settle-balances" class="summary-table"></div>
+          <button type="button" class="summary-block-toggle" id="friends-toggle" aria-expanded="true">
+            <h3>חברים <span class="summary-block-count" id="friends-count"></span></h3>
+            <span class="summary-block-chevron">▾</span>
+          </button>
+          <div class="summary-block-body" id="friends-body">
+            <div class="summary-block-body-inner">
+              <div id="friends-list"></div>
+              <p id="friends-empty" class="empty-state" hidden>עדיין לא הוספת מטיילים</p>
+              <div class="add-friend-row">
+                <input type="text" id="add-friend-input" class="clean-input" placeholder="שם המטייל…" autocomplete="off" />
+                <select id="add-friend-group-select" class="group-select"></select>
+              </div>
+              <button type="button" class="add-friend-btn add-friend-btn-wide" id="add-friend-btn">הוספה</button>
+            </div>
+          </div>
         </div>
       </section>
     </section>
@@ -258,6 +348,12 @@
         <input type="text" id="currency-search" class="clean-input" placeholder="חפש מטבע…" autocomplete="off" />
         <div class="currency-list" id="currency-list"></div>
       </div>
+    </div>
+
+    <div class="photo-lightbox" id="photo-lightbox" hidden>
+      <button type="button" class="lightbox-close" id="lightbox-close" aria-label="סגור">✕</button>
+      <img id="lightbox-img" src="" alt="תמונה מוגדלת" />
+      <button type="button" class="lightbox-replace-btn" id="lightbox-replace-btn">🔄 החלף תמונה</button>
     </div>
 
   </div>

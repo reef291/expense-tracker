@@ -8,6 +8,14 @@ export function round2(n) {
 }
 
 export function myShare(e) {
+  const share = computeRawShare(e);
+  // income offsets the total instead of adding to it — flipping the sign here
+  // means every existing sum (grand total, day/month/country totals, ...)
+  // already nets it out correctly without special-casing income anywhere else
+  return e.isIncome ? -share : share;
+}
+
+function computeRawShare(e) {
   if (!e.isGroup) return e.amountILS;
   if (e.participants?.length) {
     if (typeof e.participants[0] === "object") {
@@ -75,6 +83,7 @@ export async function addExpense(input) {
     paidBy: input.isGroup ? input.paidBy || "me" : "me",
     participants: input.isGroup ? input.participants ?? [] : [],
     excludeFromTotal: Boolean(input.excludeFromTotal),
+    isIncome: Boolean(input.isIncome),
     photo: input.photo ?? null,
     createdAt: Date.now(),
   };
@@ -82,6 +91,23 @@ export async function addExpense(input) {
   saveExpenses(expenses);
   if (isRemoteEnabled()) await postRemoteExpense(expense);
   return expense;
+}
+
+// renames a participant/payer across every expense that references them by name
+export function renameParticipant(oldName, newName) {
+  expenses = expenses.map((e) => {
+    if (!e.isGroup) return e;
+    const paidBy = e.paidBy === oldName ? newName : e.paidBy;
+    let participants = e.participants;
+    if (participants?.length) {
+      participants =
+        typeof participants[0] === "object"
+          ? participants.map((p) => (p.name === oldName ? { ...p, name: newName } : p))
+          : participants.map((n) => (n === oldName ? newName : n));
+    }
+    return { ...e, paidBy, participants };
+  });
+  saveExpenses(expenses);
 }
 
 export function deleteExpense(id) {

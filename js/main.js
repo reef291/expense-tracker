@@ -1,6 +1,6 @@
 import { CATEGORIES, getCategory } from "./categories.js";
 import { COUNTRY_CURRENCY, CURRENCIES, getCurrency, getRateToILS } from "./currency.js";
-import { getCountry } from "./countries.js";
+import { COUNTRIES, getCountry } from "./countries.js";
 import { detectLocation } from "./geo.js";
 import { fileToCompressedDataUrl } from "./photo.js";
 import {
@@ -17,6 +17,7 @@ import {
   getTotalsByCountry,
   getTotalsByMonth,
   myShare,
+  renameParticipant,
   round2,
   simplifyDebts,
   syncFromRemote,
@@ -26,22 +27,26 @@ import { fetchRemoteGroupMembers, isRemoteEnabled, joinRemoteGroup } from "./rem
 import { setApiUrlOverride } from "./config.js";
 import { exportExpensesToCsv, exportExpensesToXlsx } from "./export.js";
 import {
+  loadDisplayCurrency,
   loadFriends,
   loadGroupName,
   loadGroups,
   loadLastContext,
   loadLastSplit,
   loadSettlements,
+  loadTripBudget,
   loadTripDates,
+  saveDisplayCurrency,
   saveFriends,
   saveGroupName,
   saveGroups,
   saveLastContext,
   saveLastSplit,
   saveSettlements,
+  saveTripBudget,
   saveTripDates,
 } from "./storage.js";
-import { avatarHtml, getPeopleList, personLabel, resolveParticipants } from "./split.js";
+import { avatarColor, avatarHtml, getPeopleList, personLabel, resolveParticipants } from "./split.js";
 
 // ---------- elements ----------
 
@@ -50,15 +55,19 @@ const screens = document.querySelectorAll(".screen");
 const amountHomeBtn = document.getElementById("amount-home-btn");
 const amountInput = document.getElementById("amount-input");
 const amountSymbol = document.getElementById("amount-symbol");
+const amountDisplay = document.getElementById("amount-display");
+const entryTypeToggle = document.getElementById("entry-type-toggle");
 const amountContinue = document.getElementById("amount-continue");
 const currencyChip = document.getElementById("currency-chip");
 const currencyChipText = document.getElementById("currency-chip-text");
 const locationText = document.getElementById("location-text");
 
 const categoryBackBtn = document.getElementById("category-back-btn");
+const categoryCloseBtn = document.getElementById("category-close-btn");
 const categoryGrid = document.getElementById("category-grid");
 
 const detailsBackBtn = document.getElementById("details-back-btn");
+const detailsCloseBtn = document.getElementById("details-close-btn");
 const noteInput = document.getElementById("note-input");
 const isGroupInput = document.getElementById("is-group");
 const splitField = document.getElementById("split-field");
@@ -76,6 +85,10 @@ const detailsPhotoPreview = document.getElementById("details-photo-preview");
 const expenseBackBtn = document.getElementById("expense-back-btn");
 const expenseDetailBody = document.getElementById("expense-detail-body");
 const expensePhotoInput = document.getElementById("expense-photo-input");
+const photoLightbox = document.getElementById("photo-lightbox");
+const lightboxImg = document.getElementById("lightbox-img");
+const lightboxClose = document.getElementById("lightbox-close");
+const lightboxReplaceBtn = document.getElementById("lightbox-replace-btn");
 
 const filterBackBtn = document.getElementById("filter-back-btn");
 const filterTitle = document.getElementById("filter-title");
@@ -88,8 +101,9 @@ const homeAddBtn = document.getElementById("home-add-btn");
 const toastEl = document.getElementById("toast");
 const daysList = document.getElementById("days-list");
 const emptyState = document.getElementById("empty-state");
-const expenseCount = document.getElementById("expense-count");
 const totalAmountEl = document.getElementById("total-amount");
+const totalBadgeBtn = document.getElementById("total-badge-btn");
+const amountScreenTotal = document.getElementById("amount-screen-total");
 const refreshBtn = document.getElementById("refresh-btn");
 
 const tabButtons = document.querySelectorAll(".tab-btn");
@@ -97,19 +111,41 @@ const tabList = document.getElementById("tab-list");
 const tabSummary = document.getElementById("tab-summary");
 const tabSettle = document.getElementById("tab-settle");
 const appTitleBtn = document.getElementById("app-title-btn");
+const appTitleInput = document.getElementById("app-title-input");
 const groupsListEl = document.getElementById("groups-list");
+const groupsCountEl = document.getElementById("groups-count");
+const friendsCountEl = document.getElementById("friends-count");
 const groupScreenBackBtn = document.getElementById("group-screen-back-btn");
 const groupScreenTitle = document.getElementById("group-screen-title");
 const groupScreenMembers = document.getElementById("group-screen-members");
 const groupScreenEmpty = document.getElementById("group-screen-empty");
+const groupScreenActivityBlock = document.getElementById("group-screen-activity-block");
+const groupScreenActivity = document.getElementById("group-screen-activity");
+const groupScreenAddExisting = document.getElementById("group-screen-add-existing");
+const groupScreenAddExistingChips = document.getElementById("group-screen-add-existing-chips");
+const personScreenBackBtn = document.getElementById("person-screen-back-btn");
+const personScreenTitle = document.getElementById("person-screen-title");
+const personScreenTitleInput = document.getElementById("person-screen-title-input");
+const personScreenBalanceValue = document.getElementById("person-screen-balance-value");
+const personScreenSettleWrap = document.getElementById("person-screen-settle-wrap");
+const personScreenExpenses = document.getElementById("person-screen-expenses");
+const personScreenExpensesEmpty = document.getElementById("person-screen-expenses-empty");
+const personScreenActivityBlock = document.getElementById("person-screen-activity-block");
+const personScreenActivity = document.getElementById("person-screen-activity");
+const groupPhotoWrap = document.getElementById("group-photo-wrap");
+const groupPhotoBtn = document.getElementById("group-photo-btn");
+const groupPhotoInput = document.getElementById("group-photo-input");
 const addFriendGroupSelect = document.getElementById("add-friend-group-select");
-const newGroupNameInput = document.getElementById("new-group-name-input");
-const friendsChipsEl = document.getElementById("friends-chips");
+const addGroupInput = document.getElementById("add-group-input");
+const addGroupBtn = document.getElementById("add-group-btn");
+const friendsListEl = document.getElementById("friends-list");
+const friendsEmptyEl = document.getElementById("friends-empty");
 const addFriendInput = document.getElementById("add-friend-input");
 const addFriendBtn = document.getElementById("add-friend-btn");
-const settleTransfersEl = document.getElementById("settle-transfers");
-const settleBalancesEl = document.getElementById("settle-balances");
+const settleOweTotal = document.getElementById("settle-owe-total");
+const settleOwedTotal = document.getElementById("settle-owed-total");
 const statToday = document.getElementById("stat-today");
+const funFactEl = document.getElementById("fun-fact");
 const paceCard = document.getElementById("pace-card");
 const paceTotal = document.getElementById("pace-total");
 const paceStats = document.getElementById("pace-stats");
@@ -118,6 +154,11 @@ const paceDatesForm = document.getElementById("pace-dates-form");
 const paceDatesSave = document.getElementById("pace-dates-save");
 const tripStartInput = document.getElementById("trip-start-input");
 const tripEndInput = document.getElementById("trip-end-input");
+const paceBudgetLine = document.getElementById("pace-budget-line");
+const paceBudgetToggle = document.getElementById("pace-budget-toggle");
+const paceBudgetForm = document.getElementById("pace-budget-form");
+const paceBudgetSave = document.getElementById("pace-budget-save");
+const tripBudgetInput = document.getElementById("trip-budget-input");
 const monthStatBtn = document.getElementById("month-stat-btn");
 const monthStatLabel = document.getElementById("month-stat-label");
 const monthStatValue = document.getElementById("month-stat-value");
@@ -126,6 +167,8 @@ const countryStatLabel = document.getElementById("country-stat-label");
 const countryStatValue = document.getElementById("country-stat-value");
 const rangeFrom = document.getElementById("range-from");
 const rangeTo = document.getElementById("range-to");
+const rangeFromDisplay = document.getElementById("range-from-display");
+const rangeToDisplay = document.getElementById("range-to-display");
 const rangeResult = document.getElementById("range-result");
 const exportCsvBtn = document.getElementById("export-csv-btn");
 
@@ -158,6 +201,25 @@ let editingExpenseId = null; // set when the category screen is opened to edit a
 
 function formatNumber(n) {
   return (n ?? 0).toLocaleString("he-IL", { maximumFractionDigits: 2 });
+}
+
+// the currency every total/balance in the app is displayed in — every amount
+// is still stored and computed in ILS internally, this only affects display
+let displayCurrency = loadDisplayCurrency();
+let displayRate = 1; // ILS per 1 unit of displayCurrency; 1 when displayCurrency is ILS
+
+async function setDisplayCurrency(code) {
+  displayCurrency = code;
+  displayRate = code === "ILS" ? 1 : await getRateToILS(code);
+  saveDisplayCurrency(code);
+  render();
+}
+
+// the one place every ILS amount in the UI should be formatted through, so
+// switching the display currency actually updates everything at once
+function formatILS(amountILS) {
+  const amount = displayCurrency === "ILS" ? amountILS : (amountILS ?? 0) / displayRate;
+  return `${formatNumber(amount)} ${getCurrency(displayCurrency).symbol}`;
 }
 
 let toastTimer = null;
@@ -254,7 +316,43 @@ function openCurrencySheet(target = "draft") {
   sheetTitle.hidden = true;
   currencySearch.hidden = false;
   currencySearch.value = "";
+  currencySearch.placeholder = "חפש מטבע…";
   renderCurrencyList();
+  sheetBackdrop.classList.add("open");
+  setTimeout(() => currencySearch.focus(), 300);
+}
+
+function openDisplayCurrencyPicker() {
+  sheetMode = "display-currency";
+  sheetTitle.hidden = false;
+  sheetTitle.textContent = "הצגת כל הסכומים במטבע…";
+  currencySearch.hidden = false;
+  currencySearch.value = "";
+  currencySearch.placeholder = "חפש מטבע…";
+  renderCurrencyList();
+  sheetBackdrop.classList.add("open");
+  setTimeout(() => currencySearch.focus(), 300);
+}
+
+let countryEditOnSelect = null;
+
+function renderCountryEditList(query) {
+  const q = query.trim().toLowerCase();
+  const list = COUNTRIES.filter((c) => !q || c.name.toLowerCase().includes(q));
+  currencyListEl.innerHTML = list
+    .map((c) => `<button type="button" class="picker-row country-edit-row" data-code="${c.code}">${c.flag} ${c.name}</button>`)
+    .join("");
+}
+
+function openCountryEditPicker(onSelect) {
+  sheetMode = "edit-country";
+  countryEditOnSelect = onSelect;
+  sheetTitle.hidden = false;
+  sheetTitle.textContent = "בחר מדינה";
+  currencySearch.hidden = false;
+  currencySearch.value = "";
+  currencySearch.placeholder = "חפש מדינה…";
+  renderCountryEditList("");
   sheetBackdrop.classList.add("open");
   setTimeout(() => currencySearch.focus(), 300);
 }
@@ -288,8 +386,39 @@ function openExportPicker() {
   sheetBackdrop.classList.add("open");
 }
 
+let joinNameResolve = null;
+
+function openJoinNamePicker(groupName, existingNames) {
+  return new Promise((resolve) => {
+    joinNameResolve = resolve;
+    sheetMode = "join";
+    sheetTitle.hidden = false;
+    sheetTitle.textContent = `הצטרפות לקבוצה "${groupName}" — מה השם שלך?`;
+    currencySearch.hidden = false;
+    currencySearch.value = "";
+    currencySearch.placeholder = "הקלד שם ולחץ Enter…";
+    currencyListEl.innerHTML = existingNames.length
+      ? existingNames.map((n) => `<button type="button" class="picker-row join-name-row" data-name="${n}">${avatarHtml(n)} ${n}</button>`).join("")
+      : `<p class="settle-empty">עדיין אין משתתפים רשומים בקבוצה — הקלד את השם שלך למטה</p>`;
+    sheetBackdrop.classList.add("open");
+    setTimeout(() => currencySearch.focus(), 300);
+  });
+}
+
+function resolveJoinName(name) {
+  const resolve = joinNameResolve;
+  joinNameResolve = null;
+  closeCurrencySheet();
+  resolve?.(name);
+}
+
 function closeCurrencySheet() {
   sheetBackdrop.classList.remove("open");
+  if (joinNameResolve) {
+    const resolve = joinNameResolve;
+    joinNameResolve = null;
+    resolve(null);
+  }
 }
 
 // ---------- amount screen ----------
@@ -303,14 +432,24 @@ function resetPhotoField() {
 }
 
 function startNewExpense() {
-  draft = { category: null, photo: null };
+  draft = { category: null, photo: null, isIncome: false };
   amountInput.value = "";
   amountContinue.disabled = true;
   selected = { code: context.currency, rate: context.rate };
   applySelectedCurrency();
+  entryTypeToggle.querySelectorAll(".entry-type-btn").forEach((b) => b.classList.toggle("selected", b.dataset.type === "expense"));
+  amountDisplay.classList.remove("income");
   showScreen("amount");
   setTimeout(() => amountInput.focus(), 300);
 }
+
+entryTypeToggle.addEventListener("click", (e) => {
+  const btn = e.target.closest(".entry-type-btn");
+  if (!btn) return;
+  draft.isIncome = btn.dataset.type === "income";
+  entryTypeToggle.querySelectorAll(".entry-type-btn").forEach((b) => b.classList.toggle("selected", b === btn));
+  amountDisplay.classList.toggle("income", draft.isIncome);
+});
 
 function handleAmountInput() {
   const value = amountInput.value.replace(",", ".");
@@ -515,7 +654,9 @@ isGroupInput.addEventListener("change", () => {
   splitField.hidden = !isGroupInput.checked;
   if (!isGroupInput.checked) return;
   const last = loadLastSplit();
-  draft.paidBy = last.paidBy || "me";
+  // who paid defaults to "me" every time — only the participant list is worth
+  // remembering from last time, paying is the less common case and shouldn't stick
+  draft.paidBy = "me";
   draft.participants = last.participants?.length ? last.participants : ["me"];
   draft.splitMode = "equal";
   draft.customAmounts = {};
@@ -530,6 +671,18 @@ isGroupInput.addEventListener("change", () => {
     refreshSplitAmounts();
   });
   refreshSplitAmounts();
+  // the split panel just expanded below the fold — follow it all the way down
+  // so the "הוספה" button past it stays reachable without a manual scroll
+  // (scrolling splitField itself into view isn't enough: the button comes after it).
+  // double rAF: wait a full extra frame so layout has actually settled before
+  // measuring scrollHeight, and overshoot the target — scrollTo clamps to the
+  // real max automatically, so this is safe and guarantees reaching the bottom.
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      const screen = document.getElementById("screen-details");
+      screen.scrollTo({ top: screen.scrollHeight + 400, behavior: "smooth" });
+    });
+  });
 });
 
 detailsAddPhotoBtn.addEventListener("click", () => detailsPhotoInput.click());
@@ -566,6 +719,7 @@ async function handleDetailsDone() {
     participants,
     excludeFromTotal: excludeInput.checked,
     photo: draft.photo,
+    isIncome: Boolean(draft.isIncome),
   });
 
   render();
@@ -581,20 +735,26 @@ function expenseItemHtml(e) {
   const paidBy = e.paidBy || "me";
   const paidVerb = paidBy === "me" ? "שילמתי" : "שילם/ה";
   const groupLine = e.isGroup
-    ? `<span class="expense-group">${personLabel(paidBy)} ${paidVerb} על ${participantCount} אנשים, העלות שלך: ${formatNumber(myShare(e))} ₪ (מתוך ${formatNumber(e.amountILS)} ₪ בסה"כ)</span>`
+    ? `<span class="expense-group">${personLabel(paidBy)} ${paidVerb} על ${participantCount} · העלות שלך ${formatILS(myShare(e))}</span>`
     : "";
   const excludedBadge = e.excludeFromTotal ? `<span class="excluded-badge">לא נכלל בסה"כ</span>` : "";
+  // tag an expense someone else paid (I'm just a participant) with their color,
+  // so it's visually clear at a glance whose expense this originally was
+  const taggedStyle = e.isGroup && paidBy !== "me" ? ` style="border-inline-start-color:${avatarColor(paidBy)}"` : "";
+  const taggedClass = e.isGroup && paidBy !== "me" ? " expense-item-tagged" : "";
+  const incomeClass = e.isIncome ? " expense-item-income" : "";
+  const amountText = e.isIncome ? `+${formatILS(-myShare(e))}` : formatILS(myShare(e));
   return `
     <li class="expense-row-wrap">
       <div class="delete-backdrop"><span>🗑️</span></div>
-      <div class="expense-item" data-id="${e.id}">
+      <div class="expense-item${taggedClass}${incomeClass}" data-id="${e.id}"${taggedStyle}>
         <span class="expense-icon">${cat.icon}</span>
         <span class="expense-info">
           <span class="expense-note">${e.note || cat.label}</span>
           <span class="expense-meta-row">
             <span class="expense-meta">${cat.label} · ${e.location ? e.location + " · " : ""}${country.name}</span>
             <span class="expense-amount">
-              <span class="amount-ils">${formatNumber(myShare(e))}₪</span>
+              <span class="amount-ils">${amountText}</span>
               ${e.currencyLocal !== "ILS" ? `<span class="amount-local">${formatNumber(e.amountLocal)} ${e.currencyLocal}</span>` : ""}
             </span>
           </span>
@@ -613,7 +773,7 @@ function daysListHtml(days) {
         <div class="day-group">
           <div class="day-header">
             <span>${formatDay(day.date)}</span>
-            <span>${formatNumber(day.total)} ₪</span>
+            <span>${formatILS(day.total)}</span>
           </div>
           <ul class="expenses-list">${day.items.map(expenseItemHtml).join("")}</ul>
         </div>
@@ -689,18 +849,22 @@ function renderList() {
 
   const totalCount = days.reduce((sum, d) => sum + d.items.length, 0);
   emptyState.style.display = totalCount ? "none" : "block";
-  expenseCount.textContent = totalCount ? `${totalCount} רשומות` : "";
 }
 
 function renderPace() {
   const total = getGrandTotal();
-  paceTotal.textContent = `${formatNumber(total)} ₪`;
+  paceTotal.textContent = formatILS(total);
 
   const trip = loadTripDates();
   paceDatesToggle.textContent = trip?.start && trip?.end ? "📅 עריכת תאריכי טיול" : "📅 הגדרת תאריכי טיול";
 
+  const budget = loadTripBudget();
+  paceBudgetToggle.textContent = budget ? "💰 עריכת תקציב טיול" : "💰 הגדרת תקציב טיול";
+
   if (!trip?.start || !trip?.end) {
     paceStats.innerHTML = `<p class="pace-hint">הגדר תאריכי טיול כדי לראות קצב הוצאות וימי טיול</p>`;
+    statToday.classList.remove("stat-value-over", "stat-value-under");
+    paceBudgetLine.hidden = true;
     return;
   }
 
@@ -716,26 +880,100 @@ function renderPace() {
   const dailyAvg = total / elapsedDays;
   const projected = dailyAvg * totalDays;
 
+  statToday.classList.toggle("stat-value-over", getTotalToday() > dailyAvg);
+  statToday.classList.toggle("stat-value-under", getTotalToday() <= dailyAvg);
+
+  const countryPace = getCountryPace(context.countryCode);
+  const countryLine = countryPace
+    ? `<div class="pace-stat"><span>🌍</span><span>ב${getCountry(context.countryCode).name}: ${formatILS(countryPace.monthlyAvg)} לחודש</span></div>`
+    : "";
+
   paceStats.innerHTML = `
     <div class="pace-stat"><span>📅</span><span>${elapsedDays} מתוך ${totalDays} ימים</span></div>
-    <div class="pace-stat"><span>📊</span><span>ממוצע: ${formatNumber(dailyAvg)} ₪ ליום</span></div>
-    <div class="pace-stat"><span>🔮</span><span>בקצב הנוכחי תסיים ב-${formatNumber(projected)} ₪</span></div>
+    <div class="pace-stat"><span>📊</span><span>ממוצע: ${formatILS(dailyAvg)} ליום</span></div>
+    <div class="pace-stat"><span>🔮</span><span>בקצב הנוכחי תסיים ב-${formatILS(projected)}</span></div>
+    ${countryLine}
   `;
+
+  if (budget) {
+    const diff = budget - projected;
+    const isOver = diff < 0;
+    paceBudgetLine.hidden = false;
+    paceBudgetLine.className = `pace-budget-line ${isOver ? "balance-negative" : "balance-positive"}`;
+    paceBudgetLine.textContent = isOver
+      ? `⚠️ בקצב הזה תחרוג מהתקציב (${formatILS(budget)}) בכ-${formatILS(-diff)}`
+      : `✅ בקצב טוב! צפוי שתישאר עם כ-${formatILS(diff)} מהתקציב (${formatILS(budget)})`;
+  } else {
+    paceBudgetLine.hidden = true;
+  }
+}
+
+// small, honest "did you notice..." lines — built only from things we can
+// count reliably (repeated note text first — that's the most concrete signal
+// — then category frequency, then biggest expense), not guessed quantities/
+// units we don't actually track. Returns every fact that applies, so the
+// card can be tapped to cycle through them instead of only ever showing one.
+function getFunFacts() {
+  const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+  const recent = getExpenses().filter((e) => e.date >= weekAgo);
+  if (!recent.length) return [];
+
+  const facts = [];
+
+  const noteCounts = {};
+  for (const e of recent) {
+    const key = e.note?.trim();
+    if (key) noteCounts[key] = (noteCounts[key] ?? 0) + 1;
+  }
+  Object.entries(noteCounts)
+    .filter(([, count]) => count >= 2)
+    .sort((a, b) => b[1] - a[1])
+    .forEach(([note, count]) => facts.push(`🔎 השבוע קנית ${count} פעמים "${note}"`));
+
+  const catCounts = {};
+  for (const e of recent) catCounts[e.category] = (catCounts[e.category] ?? 0) + 1;
+  const topCat = Object.entries(catCounts).sort((a, b) => b[1] - a[1])[0];
+  if (topCat && topCat[1] >= 2) {
+    const cat = getCategory(topCat[0]);
+    facts.push(`🔎 השבוע היו לך ${topCat[1]} הוצאות על ${cat.label} ${cat.icon}`);
+  }
+
+  const biggest = recent.reduce((max, e) => (e.amountILS > (max?.amountILS ?? 0) ? e : max), null);
+  if (biggest) {
+    facts.push(`🔎 ההוצאה הכי גדולה השבוע: ${formatILS(biggest.amountILS)} על ${biggest.note || getCategory(biggest.category).label}`);
+  }
+
+  return facts;
+}
+
+let funFacts = [];
+let funFactIndex = 0;
+
+function showFunFact() {
+  const fact = funFacts[funFactIndex];
+  funFactEl.textContent = fact ?? "";
+  funFactEl.hidden = !fact;
+  funFactEl.classList.toggle("tappable", funFacts.length > 1);
 }
 
 function renderSummary() {
-  statToday.textContent = `${formatNumber(getTotalToday())} ₪`;
+  statToday.textContent = formatILS(getTotalToday());
+
+  funFacts = getFunFacts();
+  funFactIndex = 0;
+  showFunFact();
+
   renderPace();
 
   const currentMonth = new Date().toISOString().slice(0, 7);
   const monthTotals = Object.fromEntries(getTotalsByMonth());
   monthStatLabel.textContent = formatMonth(currentMonth);
-  monthStatValue.textContent = `${formatNumber(monthTotals[currentMonth] ?? 0)} ₪`;
+  monthStatValue.textContent = formatILS(monthTotals[currentMonth] ?? 0);
 
   const countryTotals = Object.fromEntries(getTotalsByCountry());
   const currentCountry = getCountry(context.countryCode);
   countryStatLabel.textContent = currentCountry.name;
-  countryStatValue.textContent = `${formatNumber(countryTotals[context.countryCode] ?? 0)} ₪`;
+  countryStatValue.textContent = formatILS(countryTotals[context.countryCode] ?? 0);
 }
 
 function renderPickerList(mode) {
@@ -744,18 +982,34 @@ function renderPickerList(mode) {
     entries
       .map(([key, amount]) => {
         const label = mode === "month" ? formatMonth(key) : getCountry(key).name;
-        return `<button type="button" class="picker-row" data-key="${key}"><span>${label}</span><span class="picker-value">${formatNumber(amount)} ₪</span></button>`;
+        return `<button type="button" class="picker-row" data-key="${key}"><span>${label}</span><span class="picker-value">${formatILS(amount)}</span></button>`;
       })
       .join("") || `<p class="empty-state">אין נתונים עדיין</p>`;
 }
 
+const MONTH_NAMES_EN = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+
+function formatShortDate(dateStr) {
+  const [, month, day] = dateStr.split("-").map(Number);
+  return `${MONTH_NAMES_EN[month - 1]} ${day}`;
+}
+
 function renderRange() {
+  // the real <input type="date"> is a fully invisible overlay (see .date-field-wrap
+  // input in CSS) — these spans are the only thing actually shown, so they're
+  // the only place a picked date needs to render, always in our own format
+  rangeFromDisplay.textContent = rangeFrom.value ? formatShortDate(rangeFrom.value) : "מתאריך";
+  rangeToDisplay.textContent = rangeTo.value ? formatShortDate(rangeTo.value) : "עד תאריך";
+
   if (!rangeFrom.value || !rangeTo.value) {
     rangeResult.textContent = "";
     return;
   }
   const total = getTotalForRange(rangeFrom.value, rangeTo.value);
-  rangeResult.textContent = `${formatNumber(total)} ₪`;
+  rangeResult.textContent = formatILS(total);
 }
 
 // ---------- settle-up (friends) tab ----------
@@ -763,18 +1017,69 @@ function renderRange() {
 function removeFriend(name) {
   const balance = getFriendBalances()[name] ?? 0;
   if (Math.abs(balance) > 0.01) {
-    const owes = balance < 0 ? `${personLabel(name)} חייב/ת ${formatNumber(-balance)} ₪` : `מגיע ל${personLabel(name)} ${formatNumber(balance)} ₪`;
+    const owes = balance < 0 ? `${personLabel(name)} חייב/ת ${formatILS(-balance)}` : `מגיע ל${personLabel(name)} ${formatILS(balance)}`;
     if (!confirm(`יש חוב פתוח: ${owes}. להסיר בכל זאת?`)) return;
   }
   saveFriends(loadFriends().filter((f) => f.name !== name));
   renderFriendsTab();
 }
 
+function renameFriend(oldName, newName, afterRender = renderFriendsTab) {
+  if (newName === "me" || getPeopleList().includes(newName)) {
+    showToast("השם הזה כבר קיים");
+    afterRender();
+    return;
+  }
+
+  saveFriends(loadFriends().map((f) => (f.name === oldName ? { ...f, name: newName } : f)));
+  saveSettlements(
+    loadSettlements().map((s) => ({
+      ...s,
+      from: s.from === oldName ? newName : s.from,
+      to: s.to === oldName ? newName : s.to,
+    }))
+  );
+  renameParticipant(oldName, newName);
+  render();
+  afterRender();
+}
+
+// swaps a friend-row's name button for a text input in place, so renaming
+// feels like editing a value rather than a jarring native prompt() popup.
+// only safe on elements that get fully regenerated on re-render (like friend
+// rows) — never on a persistent top-level element (see the app-title/person
+// -title toggle-input pattern for those instead).
+function beginRenameFriend(labelBtn, afterRender = renderFriendsTab) {
+  const oldName = labelBtn.dataset.name;
+  const input = document.createElement("input");
+  input.type = "text";
+  input.className = "inline-rename-input";
+  input.value = oldName;
+  labelBtn.replaceWith(input);
+  input.focus();
+  input.select();
+
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") input.blur();
+    if (e.key === "Escape") {
+      input.value = oldName;
+      input.blur();
+    }
+  });
+  input.addEventListener("blur", () => {
+    const newName = input.value.trim();
+    if (newName && newName !== oldName) renameFriend(oldName, newName, afterRender);
+    else afterRender();
+  });
+}
+
 function addGroup(name) {
   const groups = loadGroups();
-  if (!name || groups.some((g) => g.name === name)) return;
-  groups.push({ id: crypto.randomUUID(), name });
+  if (!name || groups.some((g) => g.name === name)) return null;
+  const group = { id: crypto.randomUUID(), name };
+  groups.push(group);
   saveGroups(groups);
+  return group;
 }
 
 function removeGroup(id) {
@@ -782,6 +1087,12 @@ function removeGroup(id) {
   // members of a removed group become individuals again, not deleted
   saveFriends(loadFriends().map((f) => (f.groupId === id ? { ...f, groupId: null } : f)));
   renderFriendsTab();
+}
+
+function setGroupPhoto(groupId, photo) {
+  saveGroups(loadGroups().map((g) => (g.id === groupId ? { ...g, photo } : g)));
+  renderFriendsTab();
+  openGroupScreen(groupId);
 }
 
 function buildInviteLink(groupId, groupName) {
@@ -794,11 +1105,11 @@ function buildInviteLink(groupId, groupName) {
   return url.toString();
 }
 
-function copyInviteLink(groupId, groupName) {
+function copyInviteLink(groupId, groupName, message = "קישור הועתק") {
   const link = buildInviteLink(groupId, groupName);
   navigator.clipboard
     ?.writeText(link)
-    .then(() => showToast("קישור הועתק"))
+    .then(() => showToast(message))
     .catch(() => {
       // clipboard blocked/unavailable — fall back to showing the link directly
       const note = isRemoteEnabled()
@@ -822,9 +1133,46 @@ function getMyGroupBalance(groupId) {
   return round2(net);
 }
 
+// my net position vs. one specific person, same simplified-graph logic as getMyGroupBalance
+function getMyBalanceWith(name) {
+  const transfers = simplifyDebts(getFriendBalances());
+  let net = 0;
+  for (const t of transfers) {
+    if (t.from === "me" && t.to === name) net -= t.amount;
+    if (t.to === "me" && t.from === name) net += t.amount;
+  }
+  return round2(net);
+}
+
+// a person can show "מסודר" (no direct debt with me) while still owing/being owed
+// money elsewhere in the group (their debt got routed through someone else in the
+// simplification) — tell those two "zero" cases apart so a real debt is never silent
+function describeBalanceWith(name) {
+  const amount = getMyBalanceWith(name);
+  const isZero = Math.abs(amount) <= 0.01;
+  const hasOtherDebt = isZero && Math.abs(round2(getFriendBalances()[name] ?? 0)) > 0.01;
+  const cls = isZero ? "balance-zero" : amount > 0 ? "balance-positive" : "balance-negative";
+  const text = isZero
+    ? hasOtherDebt
+      ? "אין חוב ישיר איתך"
+      : "מסודר"
+    : amount > 0
+      ? `חייב/ת לך ${formatILS(amount)}`
+      : `אתה חייב ${formatILS(-amount)}`;
+  return { amount, cls, text };
+}
+
+function groupAvatarHtml(group, big = false) {
+  const cls = big ? "group-avatar group-avatar-lg" : "group-avatar";
+  if (group.photo) return `<img class="${cls}" src="${group.photo}" alt="" />`;
+  const initial = group.name.trim()[0] || "?";
+  return `<span class="${cls} group-avatar-initial" style="background:${avatarColor(group.name)}">${initial}</span>`;
+}
+
 function renderGroupsList() {
   const groups = loadGroups();
   const friends = loadFriends();
+  groupsCountEl.textContent = groups.length ? `· ${groups.length}` : "";
 
   groupsListEl.innerHTML = groups.length
     ? groups
@@ -833,9 +1181,10 @@ function renderGroupsList() {
           const myBalance = getMyGroupBalance(g.id);
           const isZero = Math.abs(myBalance) <= 0.01;
           const cls = isZero ? "balance-zero" : myBalance > 0 ? "balance-positive" : "balance-negative";
-          const balanceText = isZero ? "מאופס ₪0" : `${myBalance > 0 ? "+" : ""}${formatNumber(myBalance)} ₪`;
+          const balanceText = isZero ? `מאופס ${formatILS(0)}` : `${myBalance > 0 ? "+" : ""}${formatILS(myBalance)}`;
           return `
           <div class="group-list-row">
+            ${groupAvatarHtml(g)}
             <button type="button" class="group-name-btn" data-id="${g.id}">
               <span class="group-name-text">
                 <span class="group-name-main">${g.name}</span>
@@ -850,7 +1199,7 @@ function renderGroupsList() {
           </div>`;
         })
         .join("")
-    : `<p class="settle-empty">אין קבוצות עדיין</p>`;
+    : `<p class="section-empty-hint">אין קבוצות עדיין</p>`;
 
   groupsListEl.querySelectorAll(".group-name-btn").forEach((btn) => {
     btn.addEventListener("click", () => openGroupScreen(btn.dataset.id));
@@ -863,23 +1212,209 @@ function renderGroupsList() {
   });
 
   addFriendGroupSelect.innerHTML =
-    `<option value="">ללא קבוצה</option>` +
-    groups.map((g) => `<option value="${g.id}">${g.name}</option>`).join("") +
-    `<option value="__new__">➕ קבוצה חדשה…</option>`;
+    `<option value="">ללא קבוצה</option>` + groups.map((g) => `<option value="${g.id}">${g.name}</option>`).join("");
+}
+
+function addExistingFriendToGroup(name, groupId) {
+  saveFriends(loadFriends().map((f) => (f.name === name ? { ...f, groupId } : f)));
+  renderFriendsTab();
+  openGroupScreen(groupId);
+}
+
+// shared transfer-row renderer: used by the group screen's "charges" list
+function transferRowHtml(t, i) {
+  return `
+        <div class="transfer-row">
+          <div class="transfer-main">
+            <div class="transfer-people">
+              <span class="who">${avatarHtml(t.from)} ${personLabel(t.from)}</span>
+              <span class="transfer-arrow">חייב ל</span>
+              <span class="who">${avatarHtml(t.to)} ${personLabel(t.to)}</span>
+            </div>
+            <span class="transfer-amount">${formatILS(t.amount)}</span>
+          </div>
+          <div class="transfer-actions">
+            <button type="button" class="settle-btn" data-i="${i}">לקזז</button>
+            <button type="button" class="quickpay-btn" data-amount="${t.amount}">📋 העתקת הסכום</button>
+          </div>
+        </div>`;
+}
+
+// flashes the button to its "done" state before the actual data mutation +
+// re-render happens, so settling reads as an action-then-confirmation, not an instant swap
+function playSettleAnimation(btn, onDone) {
+  btn.disabled = true;
+  btn.classList.add("settled");
+  btn.textContent = "✓ קוזז";
+  setTimeout(onDone, 550);
+}
+
+function renderTransferRows(container, transfers, onSettled) {
+  container.innerHTML = transfers.map(transferRowHtml).join("");
+  container.querySelectorAll(".settle-btn").forEach((btn) => {
+    const t = transfers[Number(btn.dataset.i)];
+    btn.addEventListener("click", () => {
+      playSettleAnimation(btn, () => {
+        markSettled(t.from, t.to, t.amount);
+        onSettled();
+      });
+    });
+  });
+  container.querySelectorAll(".quickpay-btn").forEach((btn) => {
+    btn.addEventListener("click", () => copyAmount(btn.dataset.amount));
+  });
+}
+
+function formatActivityDate(iso) {
+  const d = new Date(iso);
+  const time = d.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" });
+  const days = Math.floor((Date.now() - d.getTime()) / 86400000);
+  let label;
+  if (days <= 0) label = "היום";
+  else if (days === 1) label = "אתמול";
+  else if (days < 7) label = `לפני ${days} ימים`;
+  else label = `${d.getDate()} ב${MONTH_NAMES[d.getMonth()]}`;
+  return `${label}, ${time}`;
+}
+
+// phrases a settlement in natural Hebrew: first-person when "me" is involved
+// ("אני קיזזתי עם X" / "X קיזז/ה איתי"), third-person "עם" otherwise
+function settlementLine(s) {
+  if (s.from === "me") return `אני קיזזתי עם ${personLabel(s.to)}`;
+  const withWhom = s.to === "me" ? "איתי" : `עם ${personLabel(s.to)}`;
+  return `${personLabel(s.from)} קיזז/ה ${withWhom}`;
+}
+
+function groupActivityRows(memberNames) {
+  return loadSettlements()
+    .filter((s) => memberNames.has(s.from) || memberNames.has(s.to))
+    .sort((a, b) => (b.date || "").localeCompare(a.date || ""))
+    .map(
+      (s) => `
+        <div class="activity-row">
+          <span class="who">✓ ${settlementLine(s)}</span>
+          <span class="activity-meta">${formatILS(s.amount)} · ${formatActivityDate(s.date)}</span>
+        </div>`
+    )
+    .join("");
 }
 
 function openGroupScreen(groupId) {
   const group = loadGroups().find((g) => g.id === groupId);
   if (!group) return;
 
-  const members = loadFriends().filter((f) => f.groupId === groupId);
-  const balances = getFriendBalances();
+  const friends = loadFriends();
+  const memberNames = new Set(friends.filter((f) => f.groupId === groupId).map((f) => f.name));
+  const transfers = simplifyDebts(getFriendBalances()).filter((t) => memberNames.has(t.from) || memberNames.has(t.to));
 
   groupScreenTitle.textContent = group.name;
-  groupScreenMembers.innerHTML = members.map((f) => balanceRowHtml(f.name, balances)).join("");
-  groupScreenEmpty.hidden = members.length > 0;
+  groupPhotoBtn.dataset.groupId = groupId;
+  groupPhotoBtn.innerHTML = group.photo ? `<img src="${group.photo}" alt="" />` : `<span>${group.name.trim()[0] || "?"}</span>`;
+  groupPhotoBtn.style.background = group.photo ? "none" : avatarColor(group.name);
+
+  renderTransferRows(groupScreenMembers, transfers, () => openGroupScreen(groupId));
+  if (memberNames.size === 0) {
+    groupScreenEmpty.textContent = "אין מטיילים בקבוצה הזו עדיין";
+    groupScreenEmpty.hidden = false;
+  } else if (transfers.length === 0) {
+    groupScreenEmpty.textContent = "הכל מסודר בקבוצה הזו 🎉";
+    groupScreenEmpty.hidden = false;
+  } else {
+    groupScreenEmpty.hidden = true;
+  }
+
+  const activityHtml = groupActivityRows(memberNames);
+  groupScreenActivityBlock.hidden = !activityHtml;
+  groupScreenActivity.innerHTML = activityHtml;
+
+  const ungrouped = friends.filter((f) => !f.groupId);
+  groupScreenAddExisting.hidden = ungrouped.length === 0;
+  groupScreenAddExistingChips.innerHTML = ungrouped
+    .map((f) => `<button type="button" class="chip" data-name="${f.name}">${personLabel(f.name)}</button>`)
+    .join("");
+  groupScreenAddExistingChips.querySelectorAll(".chip").forEach((chip) => {
+    chip.addEventListener("click", () => addExistingFriendToGroup(chip.dataset.name, groupId));
+  });
 
   showScreen("group");
+}
+
+function expenseInvolves(e, name) {
+  const names = new Set((e.participants ?? []).map((p) => (typeof p === "object" ? p.name : p)));
+  names.add(e.paidBy || "me");
+  return names.has("me") && names.has(name);
+}
+
+function personExpenseRowHtml(e) {
+  const cat = getCategory(e.category);
+  return `
+        <div class="activity-row">
+          <span class="who">${cat.icon} ${e.note || cat.label}</span>
+          <span class="activity-meta">${formatILS(myShare(e))} · ${formatDay(e.date)}</span>
+        </div>`;
+}
+
+function personActivityRows(name) {
+  const settlementEvents = loadSettlements()
+    .filter((s) => (s.from === "me" && s.to === name) || (s.from === name && s.to === "me"))
+    .map((s) => ({
+      date: s.date,
+      html: `<span class="who">✓ ${settlementLine(s)}</span><span class="activity-meta">${formatILS(s.amount)} · ${formatActivityDate(s.date)}</span>`,
+    }));
+
+  // being tagged in someone else's expense is its own kind of activity, not
+  // just a line item under "shared expenses" — it should read like an event
+  const taggedEvents = getExpenses()
+    .filter((e) => e.isGroup && e.paidBy === name && expenseInvolves(e, name))
+    .map((e) => {
+      const iso = e.createdAt ? new Date(e.createdAt).toISOString() : e.date;
+      return {
+        date: iso,
+        html: `<span class="who">🧾 ${personLabel(name)} שם עליך הוצאה: ${e.note || getCategory(e.category).label}</span><span class="activity-meta">${formatILS(
+          myShare(e)
+        )} · ${formatActivityDate(iso)}</span>`,
+      };
+    });
+
+  return [...settlementEvents, ...taggedEvents]
+    .sort((a, b) => (b.date || "").localeCompare(a.date || ""))
+    .map((item) => `<div class="activity-row">${item.html}</div>`)
+    .join("");
+}
+
+function openPersonScreen(name) {
+  personScreenTitle.textContent = name;
+  personScreenTitle.dataset.name = name;
+
+  const { amount, cls, text } = describeBalanceWith(name);
+  const isZero = Math.abs(amount) <= 0.01;
+  personScreenBalanceValue.textContent = text;
+  personScreenBalanceValue.className = `settle-summary-value ${cls}`;
+
+  personScreenSettleWrap.innerHTML = isZero
+    ? ""
+    : `<button type="button" class="friend-row-settle person-screen-settle" data-from="${amount > 0 ? name : "me"}" data-to="${
+        amount > 0 ? "me" : name
+      }" data-amount="${Math.abs(amount)}">לקזז</button>`;
+  const settleBtn = personScreenSettleWrap.querySelector(".person-screen-settle");
+  if (settleBtn) {
+    settleBtn.addEventListener("click", () => {
+      playSettleAnimation(settleBtn, () => {
+        markSettled(settleBtn.dataset.from, settleBtn.dataset.to, Number(settleBtn.dataset.amount));
+        openPersonScreen(name);
+      });
+    });
+  }
+
+  const sharedExpenses = getExpenses().filter((e) => e.isGroup && expenseInvolves(e, name));
+  personScreenExpenses.innerHTML = sharedExpenses.map(personExpenseRowHtml).join("");
+  personScreenExpensesEmpty.hidden = sharedExpenses.length > 0;
+
+  const activityHtml = personActivityRows(name);
+  personScreenActivityBlock.hidden = !activityHtml;
+  personScreenActivity.innerHTML = activityHtml;
+
+  showScreen("person");
 }
 
 function renderAppTitle() {
@@ -887,46 +1422,72 @@ function renderAppTitle() {
   appTitleBtn.textContent = tripName ? `הוצאות הטיול · ${tripName}` : "הוצאות הטיול";
 }
 
+function friendRowHtml(name) {
+  const { amount, cls, text } = describeBalanceWith(name);
+  const isZero = Math.abs(amount) <= 0.01;
+  const settleBtn = isZero
+    ? ""
+    : `<button type="button" class="friend-row-settle" data-from="${amount > 0 ? name : "me"}" data-to="${
+        amount > 0 ? "me" : name
+      }" data-amount="${Math.abs(amount)}">לקזז</button>`;
+  return `
+        <div class="friend-row">
+          <button type="button" class="friend-row-avatar" data-name="${name}" aria-label="הצג חיובים עם ${name}">${avatarHtml(name)}</button>
+          <span class="friend-row-text">
+            <button type="button" class="friend-row-label" data-name="${name}" aria-label="שינוי שם">${name}</button>
+            <span class="friend-row-balance ${cls}">${text}</span>
+          </span>
+          ${settleBtn}
+          <button type="button" class="friend-row-remove" data-name="${name}" aria-label="הסר">✕</button>
+        </div>`;
+}
+
+function renderSettleSummary() {
+  const friends = loadFriends();
+  let oweTotal = 0;
+  let owedTotal = 0;
+  for (const f of friends) {
+    const amount = getMyBalanceWith(f.name);
+    if (amount > 0) owedTotal += amount;
+    else oweTotal += -amount;
+  }
+  settleOweTotal.textContent = formatILS(round2(oweTotal));
+  settleOwedTotal.textContent = formatILS(round2(owedTotal));
+}
+
 function renderFriendsTab() {
   renderAppTitle();
   renderGroupsList();
+  renderSettleSummary();
 
-  const groups = loadGroups();
   const friends = loadFriends();
+  friendsCountEl.textContent = friends.length ? `· ${friends.length}` : "";
+  friendsListEl.innerHTML = friends.map((f) => friendRowHtml(f.name)).join("");
+  friendsEmptyEl.hidden = friends.length > 0;
 
-  const friendChipHtml = (f) => `
-        <span class="friend-chip">
-          ${avatarHtml(f.name)}
-          ${f.name}
-          <button type="button" data-name="${f.name}" aria-label="הסר">✕</button>
-        </span>`;
-
-  let html = "";
-  for (const g of groups) {
-    const members = friends.filter((f) => f.groupId === g.id);
-    if (!members.length) continue;
-    html += `<div class="friends-group-heading">${g.name}</div>` + members.map(friendChipHtml).join("");
-  }
-  const ungrouped = friends.filter((f) => !f.groupId);
-  if (ungrouped.length) {
-    if (groups.length) html += `<div class="friends-group-heading">ללא קבוצה</div>`;
-    html += ungrouped.map(friendChipHtml).join("");
-  }
-
-  friendsChipsEl.innerHTML = html || `<p class="settle-empty">עדיין לא הוספת מטיילים</p>`;
-
-  friendsChipsEl.querySelectorAll("button[data-name]").forEach((btn) => {
+  friendsListEl.querySelectorAll(".friend-row-avatar").forEach((btn) => {
+    btn.addEventListener("click", () => openPersonScreen(btn.dataset.name));
+  });
+  friendsListEl.querySelectorAll(".friend-row-label").forEach((btn) => {
+    btn.addEventListener("click", () => beginRenameFriend(btn));
+  });
+  friendsListEl.querySelectorAll(".friend-row-remove").forEach((btn) => {
     btn.addEventListener("click", () => removeFriend(btn.dataset.name));
   });
-
-  renderSettle();
+  friendsListEl.querySelectorAll(".friend-row-settle").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      playSettleAnimation(btn, () => {
+        markSettled(btn.dataset.from, btn.dataset.to, Number(btn.dataset.amount));
+        renderFriendsTab();
+      });
+    });
+  });
 }
 
 function markSettled(from, to, amount) {
   const settlements = loadSettlements();
-  settlements.push({ from, to, amount, date: new Date().toISOString().slice(0, 10) });
+  settlements.push({ from, to, amount, date: new Date().toISOString() });
   saveSettlements(settlements);
-  renderSettle();
 }
 
 function copyAmount(amount) {
@@ -936,88 +1497,11 @@ function copyAmount(amount) {
     .catch(() => {});
 }
 
-function balanceRowHtml(name, balances) {
-  const amount = round2(balances[name] ?? 0);
-  const isZero = Math.abs(amount) <= 0.01;
-  const cls = isZero ? "balance-zero" : amount > 0 ? "balance-positive" : "balance-negative";
-  const text = isZero ? "מאופס ₪0" : `${amount > 0 ? "+" : ""}${formatNumber(amount)} ₪`;
-  return `
-        <div class="transfer-row balance-row">
-          <span class="who">${avatarHtml(name)} ${personLabel(name)}</span>
-          <span class="${cls}">${text}</span>
-        </div>`;
-}
-
-function renderSettle() {
-  const balances = getFriendBalances();
-  const transfers = simplifyDebts(balances);
-
-  settleTransfersEl.innerHTML = transfers.length
-    ? transfers
-        .map(
-          (t, i) => `
-        <div class="transfer-row">
-          <div class="transfer-main">
-            <div class="transfer-people">
-              <span class="who">${avatarHtml(t.from)} ${personLabel(t.from)}</span>
-              <span class="transfer-arrow">חייב ל</span>
-              <span class="who">${avatarHtml(t.to)} ${personLabel(t.to)}</span>
-            </div>
-            <span class="transfer-amount">${formatNumber(t.amount)} ₪</span>
-          </div>
-          <div class="transfer-actions">
-            <button type="button" class="settle-btn" data-i="${i}">✓ קוזז</button>
-            <button type="button" class="quickpay-btn" data-amount="${t.amount}">📋 העתקת הסכום</button>
-          </div>
-        </div>`
-        )
-        .join("")
-    : `<p class="settle-empty">הכל מסודר 🎉</p>`;
-
-  settleTransfersEl.querySelectorAll(".settle-btn").forEach((btn) => {
-    const t = transfers[Number(btn.dataset.i)];
-    btn.addEventListener("click", () => markSettled(t.from, t.to, t.amount));
-  });
-  settleTransfersEl.querySelectorAll(".quickpay-btn").forEach((btn) => {
-    btn.addEventListener("click", () => copyAmount(btn.dataset.amount));
-  });
-
-  const groups = loadGroups();
-  const friends = loadFriends();
-
-  let html = balanceRowHtml("me", balances);
-  for (const g of groups) {
-    const members = friends.filter((f) => f.groupId === g.id);
-    if (!members.length) continue;
-    html += `<div class="balance-section-heading">${g.name}</div>` + members.map((f) => balanceRowHtml(f.name, balances)).join("");
-  }
-  const ungrouped = friends.filter((f) => !f.groupId);
-  if (ungrouped.length) {
-    html += `<div class="balance-section-heading">אנשים בודדים</div>` + ungrouped.map((f) => balanceRowHtml(f.name, balances)).join("");
-  }
-
-  settleBalancesEl.innerHTML = html;
-}
-
 function handleAddFriend() {
   const name = addFriendInput.value.trim();
   if (!name || name === "me") return;
-
-  let groupId = addFriendGroupSelect.value || null;
-  if (groupId === "__new__") {
-    const groupName = newGroupNameInput.value.trim();
-    if (!groupName) {
-      newGroupNameInput.focus();
-      return;
-    }
-    addGroup(groupName);
-    groupId = loadGroups().find((g) => g.name === groupName)?.id ?? null;
-  }
-
-  addFriend(name, groupId);
+  addFriend(name, addFriendGroupSelect.value || null);
   addFriendInput.value = "";
-  newGroupNameInput.value = "";
-  newGroupNameInput.hidden = true;
   renderFriendsTab();
 }
 
@@ -1026,16 +1510,54 @@ function render() {
   renderSummary();
   renderRange();
   renderFriendsTab();
-  totalAmountEl.textContent = `${formatNumber(getGrandTotal())} ₪`;
+  const totalText = formatILS(getGrandTotal());
+  totalAmountEl.textContent = totalText;
+  amountScreenTotal.textContent = totalText;
+}
+
+const TAB_ORDER = ["list", "summary", "settle"];
+
+function switchTab(tab) {
+  if (!TAB_ORDER.includes(tab)) return;
+  tabButtons.forEach((b) => b.classList.toggle("selected", b.dataset.tab === tab));
+  tabList.hidden = tab !== "list";
+  tabSummary.hidden = tab !== "summary";
+  tabSettle.hidden = tab !== "settle";
 }
 
 function handleTabClick(e) {
   const tab = e.target.dataset.tab;
   if (!tab) return;
-  tabButtons.forEach((b) => b.classList.toggle("selected", b === e.target));
-  tabList.hidden = tab !== "list";
-  tabSummary.hidden = tab !== "summary";
-  tabSettle.hidden = tab !== "settle";
+  switchTab(tab);
+}
+
+// swiping the background (not a list row, which has its own delete-swipe)
+// moves between the three tabs — הוצאות ‹→› תובנות ‹→› קיזוזים
+function attachTabSwipe(container) {
+  let startX = null;
+  let startY = null;
+  let eligible = false;
+
+  container.addEventListener("pointerdown", (e) => {
+    eligible = !e.target.closest(".expense-row-wrap, button, input, select, a");
+    startX = e.clientX;
+    startY = e.clientY;
+  });
+
+  container.addEventListener("pointerup", (e) => {
+    if (!eligible || startX === null) return;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    startX = null;
+    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+
+    const current = document.querySelector(".tab-btn.selected")?.dataset.tab;
+    const idx = TAB_ORDER.indexOf(current);
+    if (idx === -1) return;
+    // RTL reading order: a leftward swipe (dx < 0) advances to the next tab
+    const nextIdx = dx < 0 ? idx + 1 : idx - 1;
+    if (nextIdx >= 0 && nextIdx < TAB_ORDER.length) switchTab(TAB_ORDER[nextIdx]);
+  });
 }
 
 async function syncGroupMembersFromRemote() {
@@ -1104,10 +1626,10 @@ function openExpenseDetail(id, cameFrom) {
         <span>תאריך</span>
         <input type="date" id="detail-date-input" value="${e.date}" lang="he" />
       </div>
-      <div class="detail-row">
+      <button type="button" class="detail-row detail-row-btn" id="detail-country-row">
         <span>מדינה</span>
-        <span>${country.flag} ${country.name}</span>
-      </div>
+        <span>${country.flag} ${country.name} ‹</span>
+      </button>
       <button type="button" class="detail-row detail-row-btn" id="detail-category-row">
         <span>קטגוריה</span>
         <span>${cat.icon} ${cat.label} ‹</span>
@@ -1174,16 +1696,30 @@ function openExpenseDetail(id, cameFrom) {
 }
 
 function resizeAmountInput(el) {
-  el.style.width = `${Math.max(1.5, el.value.length)}ch`;
+  // +0.6ch buffer: bold digits render wider than the "0" glyph "ch" is measured
+  // against, so a tight fit clips the last character.
+  el.style.width = `${Math.max(1.5, el.value.length + 0.6)}ch`;
 }
 
 expenseDetailBody.addEventListener("click", (e) => {
-  if (e.target.closest("#expense-add-photo-btn") || e.target.closest("#expense-photo-preview")) {
+  if (e.target.closest("#expense-add-photo-btn")) {
     expensePhotoInput.click();
+  }
+  if (e.target.closest("#expense-photo-preview")) {
+    lightboxImg.src = e.target.closest("#expense-photo-preview").src;
+    photoLightbox.hidden = false;
   }
   if (e.target.closest("#detail-category-row")) {
     editingExpenseId = currentExpenseId;
     showScreen("category");
+  }
+  if (e.target.closest("#detail-country-row")) {
+    const id = currentExpenseId;
+    openCountryEditPicker((code) => {
+      updateExpense(id, { country: code });
+      render();
+      openExpenseDetail(id, previousScreen);
+    });
   }
   if (e.target.closest("#detail-currency-btn")) {
     openCurrencySheet("detail");
@@ -1239,6 +1775,15 @@ expensePhotoInput.addEventListener("change", async () => {
   openExpenseDetail(currentExpenseId, previousScreen);
 });
 
+lightboxClose.addEventListener("click", () => (photoLightbox.hidden = true));
+photoLightbox.addEventListener("click", (e) => {
+  if (e.target === photoLightbox) photoLightbox.hidden = true;
+});
+lightboxReplaceBtn.addEventListener("click", () => {
+  photoLightbox.hidden = true;
+  expensePhotoInput.click();
+});
+
 // ---------- filter (drill-down) screen ----------
 
 function openFilterScreen(type, value) {
@@ -1248,15 +1793,15 @@ function openFilterScreen(type, value) {
 
   filterTitle.textContent = type === "country" ? getCountry(value).name : formatMonth(value);
   const total = days.reduce((sum, d) => sum + d.total, 0);
-  filterTotal.textContent = `${formatNumber(total)} ₪`;
+  filterTotal.textContent = formatILS(total);
 
   if (type === "country") {
     const pace = getCountryPace(value);
     filterCountryPace.innerHTML = pace
       ? `
         <div class="pace-stat"><span>📅</span><span>${pace.days} ימים במדינה</span></div>
-        <div class="pace-stat"><span>📊</span><span>ממוצע יומי: ${formatNumber(pace.dailyAvg)} ₪</span></div>
-        <div class="pace-stat"><span>📆</span><span>ממוצע חודשי: ${formatNumber(pace.monthlyAvg)} ₪</span></div>
+        <div class="pace-stat"><span>📊</span><span>ממוצע יומי: ${formatILS(pace.dailyAvg)}</span></div>
+        <div class="pace-stat"><span>📆</span><span>ממוצע חודשי: ${formatILS(pace.monthlyAvg)}</span></div>
       `
       : "";
   } else {
@@ -1300,7 +1845,12 @@ categoryBackBtn.addEventListener("click", () => {
   }
   showScreen("amount");
 });
+categoryCloseBtn.addEventListener("click", () => {
+  editingExpenseId = null;
+  showScreen("home");
+});
 detailsBackBtn.addEventListener("click", () => showScreen("category"));
+detailsCloseBtn.addEventListener("click", () => showScreen("home"));
 detailsDone.addEventListener("click", handleDetailsDone);
 
 expenseBackBtn.addEventListener("click", () => showScreen(previousScreen));
@@ -1309,6 +1859,29 @@ filterBackBtn.addEventListener("click", () => {
   showScreen("home");
 });
 groupScreenBackBtn.addEventListener("click", () => showScreen("home"));
+
+personScreenBackBtn.addEventListener("click", () => showScreen("home"));
+personScreenTitle.addEventListener("click", () => {
+  personScreenTitleInput.value = personScreenTitle.dataset.name;
+  personScreenTitle.hidden = true;
+  personScreenTitleInput.hidden = false;
+  personScreenTitleInput.focus();
+  personScreenTitleInput.select();
+});
+personScreenTitleInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") personScreenTitleInput.blur();
+  if (e.key === "Escape") {
+    personScreenTitleInput.value = personScreenTitle.dataset.name;
+    personScreenTitleInput.blur();
+  }
+});
+personScreenTitleInput.addEventListener("blur", () => {
+  const oldName = personScreenTitle.dataset.name;
+  const newName = personScreenTitleInput.value.trim();
+  personScreenTitleInput.hidden = true;
+  personScreenTitle.hidden = false;
+  if (newName && newName !== oldName) renameFriend(oldName, newName, () => openPersonScreen(newName));
+});
 filterTitle.addEventListener("click", () => {
   if (!currentFilter) return;
   const { type, value } = currentFilter;
@@ -1321,6 +1894,7 @@ filterTitle.addEventListener("click", () => {
 homeAddBtn.addEventListener("click", startNewExpense);
 refreshBtn.addEventListener("click", handleRefresh);
 document.querySelector(".tabs").addEventListener("click", handleTabClick);
+attachTabSwipe(document.getElementById("screen-home"));
 monthStatBtn.addEventListener("click", () => openMonthCountryPicker("month"));
 countryStatBtn.addEventListener("click", () => openMonthCountryPicker("country"));
 rangeFrom.addEventListener("change", renderRange);
@@ -1331,19 +1905,59 @@ addFriendBtn.addEventListener("click", handleAddFriend);
 addFriendInput.addEventListener("keydown", (e) => {
   if (e.key === "Enter") handleAddFriend();
 });
-addFriendGroupSelect.addEventListener("change", () => {
-  newGroupNameInput.hidden = addFriendGroupSelect.value !== "__new__";
-  if (!newGroupNameInput.hidden) newGroupNameInput.focus();
+addGroupBtn.addEventListener("click", () => {
+  const name = addGroupInput.value.trim();
+  if (!name) return;
+  const group = addGroup(name);
+  addGroupInput.value = "";
+  renderFriendsTab();
+  if (!group) return;
+  // straight into the new group's screen — its own "add existing people" chips
+  // double as the "who do you want to add?" prompt, plus the invite link for anyone new
+  openGroupScreen(group.id);
+  copyInviteLink(group.id, group.name, "קישור לקבוצה הועתק");
 });
-newGroupNameInput.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") handleAddFriend();
+addGroupInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") addGroupBtn.click();
+});
+
+document.querySelectorAll(".summary-block-toggle").forEach((btn) => {
+  const body = btn.nextElementSibling;
+  btn.addEventListener("click", () => {
+    const collapsed = body.classList.toggle("collapsed");
+    btn.setAttribute("aria-expanded", String(!collapsed));
+  });
+});
+
+groupPhotoWrap.addEventListener("click", () => groupPhotoInput.click());
+groupPhotoInput.addEventListener("change", async () => {
+  const file = groupPhotoInput.files[0];
+  const groupId = groupPhotoBtn.dataset.groupId;
+  groupPhotoInput.value = "";
+  if (!file || !groupId) return;
+  const photo = await fileToCompressedDataUrl(file, 400, 0.75);
+  setGroupPhoto(groupId, photo);
 });
 
 appTitleBtn.addEventListener("click", () => {
-  const name = prompt("שם הטיול:", loadGroupName())?.trim();
-  if (name === undefined) return;
-  saveGroupName(name);
+  appTitleInput.value = loadGroupName();
+  appTitleBtn.hidden = true;
+  appTitleInput.hidden = false;
+  appTitleInput.focus();
+  appTitleInput.select();
+});
+appTitleInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") appTitleInput.blur();
+  if (e.key === "Escape") {
+    appTitleInput.value = loadGroupName();
+    appTitleInput.blur();
+  }
+});
+appTitleInput.addEventListener("blur", () => {
+  saveGroupName(appTitleInput.value.trim());
   renderAppTitle();
+  appTitleInput.hidden = true;
+  appTitleBtn.hidden = false;
 });
 
 paceDatesToggle.addEventListener("click", () => {
@@ -1359,12 +1973,63 @@ paceDatesSave.addEventListener("click", () => {
   renderPace();
 });
 
+paceBudgetToggle.addEventListener("click", () => {
+  tripBudgetInput.value = loadTripBudget() ?? "";
+  paceBudgetForm.hidden = !paceBudgetForm.hidden;
+});
+paceBudgetSave.addEventListener("click", () => {
+  const amount = Number(tripBudgetInput.value);
+  if (!(amount > 0)) return;
+  saveTripBudget(amount);
+  paceBudgetForm.hidden = true;
+  renderPace();
+});
+
 currencyChip.addEventListener("click", () => openCurrencySheet("draft"));
+totalBadgeBtn.addEventListener("click", openDisplayCurrencyPicker);
+funFactEl.addEventListener("click", () => {
+  if (funFacts.length < 2) return;
+  funFactIndex = (funFactIndex + 1) % funFacts.length;
+  showFunFact();
+});
 sheetBackdrop.addEventListener("click", (e) => {
   if (e.target === sheetBackdrop) closeCurrencySheet();
 });
-currencySearch.addEventListener("input", () => renderCurrencyList(currencySearch.value));
+currencySearch.addEventListener("input", () => {
+  if (sheetMode === "currency" || sheetMode === "display-currency") renderCurrencyList(currencySearch.value);
+  if (sheetMode === "edit-country") renderCountryEditList(currencySearch.value);
+});
+currencySearch.addEventListener("keydown", (e) => {
+  if (sheetMode === "join" && e.key === "Enter") {
+    const name = currencySearch.value.trim();
+    if (name) resolveJoinName(name);
+  }
+});
 currencyListEl.addEventListener("click", async (e) => {
+  if (sheetMode === "display-currency") {
+    const row = e.target.closest(".currency-row");
+    if (!row) return;
+    closeCurrencySheet();
+    await setDisplayCurrency(row.dataset.code);
+    return;
+  }
+
+  if (sheetMode === "edit-country") {
+    const row = e.target.closest(".country-edit-row");
+    if (!row) return;
+    closeCurrencySheet();
+    countryEditOnSelect?.(row.dataset.code);
+    countryEditOnSelect = null;
+    return;
+  }
+
+  if (sheetMode === "join") {
+    const row = e.target.closest(".join-name-row");
+    if (!row) return;
+    resolveJoinName(row.dataset.name);
+    return;
+  }
+
   if (sheetMode === "export") {
     const row = e.target.closest(".picker-row");
     if (!row) return;
@@ -1424,7 +2089,19 @@ async function handleJoinFromUrl() {
   history.replaceState({}, "", clean.toString());
 
   try {
-    const myName = prompt(`הצטרפות לקבוצה "${groupName}" — מה השם שלך?`)?.trim();
+    let existingNames = [];
+    if (isRemoteEnabled()) {
+      try {
+        const members = await fetchRemoteGroupMembers();
+        existingNames = [
+          ...new Set(members.filter((m) => m.groupId === groupId && m.memberName && m.memberName !== "me").map((m) => m.memberName)),
+        ];
+      } catch {
+        // best-effort — an unreachable API just means an empty picker, not a blocked join flow
+      }
+    }
+
+    const myName = (await openJoinNamePicker(groupName, existingNames))?.trim();
     if (!myName) return true;
 
     const groups = loadGroups();
@@ -1440,7 +2117,7 @@ async function handleJoinFromUrl() {
     }
 
     render();
-    alert(`הצטרפת לקבוצה "${groupName}"!`);
+    alert(`הצטרפת לקבוצה "${groupName}" בתור ${myName}! אפשר לשנות את השם בכל רגע מטאב "קיזוז".`);
   } catch {
     // a blocked/unsupported dialog shouldn't leave the app stuck with no screen shown
   }
@@ -1453,3 +2130,8 @@ handleJoinFromUrl()
   .catch(() => showScreen("amount"));
 refreshLocation();
 if (isRemoteEnabled()) handleRefresh();
+if (displayCurrency !== "ILS") setDisplayCurrency(displayCurrency);
+
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js").catch(() => {});
+}

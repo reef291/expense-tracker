@@ -109,3 +109,24 @@ export function loadTripDates() {
 export function saveTripDates(dates) {
   localStorage.setItem(TRIP_DATES_KEY, JSON.stringify(dates));
 }
+
+const TRIP_BUDGET_KEY = "trip-budget";
+
+export function loadTripBudget() {
+  const raw = localStorage.getItem(TRIP_BUDGET_KEY);
+  return raw ? Number(raw) : null;
+}
+
+export function saveTripBudget(amountILS) {
+  localStorage.setItem(TRIP_BUDGET_KEY, String(amountILS));
+}
+
+const DISPLAY_CURRENCY_KEY = "display-currency";
+
+export function loadDisplayCurrency() {
+  return localStorage.getItem(DISPLAY_CURRENCY_KEY) || "ILS";
+}
+
+export function saveDisplayCurrency(code) {
+  localStorage.setItem(DISPLAY_CURRENCY_KEY, code);
+}
