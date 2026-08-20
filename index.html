@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+  <title>הוצאות טיול</title>
+  <link rel="stylesheet" href="css/style.css" />
+
+  <!-- PWA: lets the phone install this as a home-screen app instead of a browser tab -->
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#007aff" />
+  <link rel="apple-touch-icon" href="icons/icon-180.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="הוצאות טיול" />
+  <!-- Used only for the "export to Excel" button — real .xlsx with bold headers and real date cells (plain CSV can't do either). -->
+  <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+</head>
+<body>
+  <div id="app">
+
+    <section class="screen" id="screen-amount">
+      <div class="screen-top">
+        <button type="button" class="icon-btn" id="amount-home-btn" aria-label="לרשימת ההוצאות">☰</button>
+      </div>
+
+      <div class="amount-stage">
+        <div class="amount-display">
+          <span class="amount-symbol" id="amount-symbol">₪</span>
+          <input type="text" inputmode="decimal" id="amount-input" class="amount-input" placeholder="0" autocomplete="off" />
+        </div>
+        <button type="button" class="currency-chip" id="currency-chip">
+          <span id="currency-chip-text">מזהה מיקום…</span>
+          <span class="chip-caret">▾</span>
+        </button>
+        <p class="location-status" id="location-text"></p>
+      </div>
+
+      <button type="button" class="fab-continue" id="amount-continue" disabled aria-label="המשך">→</button>
+    </section>
+
+    <section class="screen" id="screen-category">
+      <div class="screen-top">
+        <button type="button" class="icon-btn" id="category-back-btn" aria-label="חזור">‹</button>
+        <h2>קטגוריה</h2>
+        <span class="screen-top-spacer"></span>
+      </div>
+      <div class="category-grid" id="category-grid"></div>
+    </section>
+
+    <section class="screen" id="screen-details">
+      <div class="screen-top">
+        <button type="button" class="icon-btn" id="details-back-btn" aria-label="חזור">‹</button>
+        <h2>עוד משהו?</h2>
+        <span class="screen-top-spacer"></span>
+      </div>
+
+      <div class="details-body">
+        <div class="date-row">
+          <span>תאריך</span>
+          <input type="date" id="details-date-input" class="date-input-inline" lang="he" />
+        </div>
+
+        <input type="text" id="note-input" class="clean-input" placeholder="פירוט (אופציונלי)" autocomplete="off" />
+
+        <div class="group-row">
+          <label class="checkbox-label">
+            <input type="checkbox" id="is-group" />
+            קניה קבוצתית
+          </label>
+        </div>
+
+        <div class="split-field" id="split-field" hidden>
+          <div class="split-block">
+            <span class="split-label">מי שילם?</span>
+            <div class="chips-row" id="paid-by-chips"></div>
+          </div>
+          <div class="split-block">
+            <span class="split-label">מי משתתף?</span>
+            <div class="chips-row" id="participants-chips"></div>
+          </div>
+          <div class="split-block">
+            <span class="split-label">איך לחלק?</span>
+            <div class="chips-row" id="split-mode-chips"></div>
+            <div class="split-amounts" id="split-amounts"></div>
+          </div>
+        </div>
+
+        <label class="checkbox-label standalone">
+          <input type="checkbox" id="exclude-input" />
+          לא לכלול בסה"כ ההוצאות
+        </label>
+
+        <div class="photo-field">
+          <input type="file" accept="image/*" id="details-photo-input" hidden />
+          <button type="button" class="add-photo-btn" id="details-add-photo-btn">📷 הוסף תמונה</button>
+          <img id="details-photo-preview" class="detail-photo" hidden alt="תמונה מצורפת" />
+        </div>
+      </div>
+
+      <button type="button" class="primary-btn" id="details-done">הוספה</button>
+    </section>
+
+    <section class="screen" id="screen-expense">
+      <div class="screen-top">
+        <button type="button" class="icon-btn" id="expense-back-btn" aria-label="חזור">‹</button>
+        <h2>פרטי ההוצאה</h2>
+        <span class="screen-top-spacer"></span>
+      </div>
+      <div class="expense-detail-body" id="expense-detail-body"></div>
+      <input type="file" accept="image/*" id="expense-photo-input" hidden />
+    </section>
+
+    <section class="screen" id="screen-filter">
+      <div class="screen-top">
+        <button type="button" class="icon-btn" id="filter-back-btn" aria-label="חזור">‹</button>
+        <button type="button" class="filter-title-btn" id="filter-title">—</button>
+        <span class="screen-top-spacer"></span>
+      </div>
+      <div class="tab-panel">
+        <div class="stat-box">
+          <span class="stat-label">סה"כ</span>
+          <span class="stat-value" id="filter-total">0 ₪</span>
+        </div>
+        <div class="pace-stats" id="filter-country-pace"></div>
+        <div id="filter-days-list" class="filter-days-list"></div>
+        <p id="filter-empty-state" class="empty-state" hidden>אין הוצאות בטווח הזה</p>
+      </div>
+    </section>
+
+    <section class="screen" id="screen-group">
+      <div class="screen-top">
+        <button type="button" class="icon-btn" id="group-screen-back-btn" aria-label="חזור">‹</button>
+        <h2 id="group-screen-title">—</h2>
+        <span class="screen-top-spacer"></span>
+      </div>
+      <div class="tab-panel">
+        <div id="group-screen-members"></div>
+        <p id="group-screen-empty" class="empty-state" hidden>אין מטיילים בקבוצה הזו עדיין</p>
+      </div>
+    </section>
+
+    <section class="screen" id="screen-home">
+      <header class="app-header">
+        <button type="button" class="app-title" id="app-title-btn">הוצאות הטיול</button>
+        <div class="total-badge">
+          <span class="total-label">סה"כ</span>
+          <span id="total-amount">0 ₪</span>
+        </div>
+      </header>
+
+      <nav class="tabs">
+        <button type="button" class="tab-btn selected" data-tab="list">רשימה</button>
+        <button type="button" class="tab-btn" data-tab="summary">סיכומים</button>
+        <button type="button" class="tab-btn" data-tab="settle">קיזוז</button>
+      </nav>
+
+      <section class="tab-panel" id="tab-list">
+        <div class="list-header">
+          <span id="expense-count"></span>
+          <button type="button" id="refresh-btn" title="רענן מהאוטומציה">↻</button>
+        </div>
+        <div id="days-list"></div>
+        <p id="empty-state" class="empty-state">עדיין לא נוספו הוצאות.<br />הוסף את הראשונה שלך ✈️</p>
+      </section>
+
+      <section class="tab-panel" id="tab-summary" hidden>
+        <div class="stat-row">
+          <div class="stat-box wide-single">
+            <span class="stat-label">היום</span>
+            <span class="stat-value" id="stat-today">0 ₪</span>
+          </div>
+        </div>
+
+        <div class="stat-row">
+          <button type="button" class="stat-box stat-box-btn" id="month-stat-btn">
+            <span class="stat-label" id="month-stat-label">—</span>
+            <span class="stat-value" id="month-stat-value">0 ₪</span>
+          </button>
+          <button type="button" class="stat-box stat-box-btn" id="country-stat-btn">
+            <span class="stat-label" id="country-stat-label">—</span>
+            <span class="stat-value" id="country-stat-value">0 ₪</span>
+          </button>
+        </div>
+
+        <div class="summary-block">
+          <h3>טווח תאריכים מותאם</h3>
+          <div class="range-picker">
+            <input type="date" id="range-from" lang="he" />
+            <span>עד</span>
+            <input type="date" id="range-to" lang="he" />
+          </div>
+          <p class="stat-value" id="range-result"></p>
+        </div>
+
+        <button type="button" class="export-btn" id="export-csv-btn">⬇️ ייצוא טבלה</button>
+
+        <div class="pace-card" id="pace-card">
+          <div class="pace-header">
+            <span class="pace-emoji">💸</span>
+            <div class="pace-header-text">
+              <span class="pace-label">הוצאת בטיול</span>
+              <span class="pace-total" id="pace-total">0 ₪</span>
+            </div>
+          </div>
+
+          <div class="pace-stats" id="pace-stats"></div>
+
+          <button type="button" class="pace-dates-toggle" id="pace-dates-toggle">📅 הגדרת תאריכי טיול</button>
+
+          <div class="pace-dates-form" id="pace-dates-form" hidden>
+            <div class="pace-dates-row">
+              <label>התחלה <input type="date" id="trip-start-input" lang="he" /></label>
+              <label>סיום <input type="date" id="trip-end-input" lang="he" /></label>
+            </div>
+            <button type="button" class="primary-btn pace-dates-save" id="pace-dates-save">שמירה</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="tab-panel" id="tab-settle" hidden>
+        <div class="summary-block">
+          <h3>קבוצות</h3>
+          <div class="groups-list" id="groups-list"></div>
+        </div>
+
+        <div class="summary-block">
+          <h3>מטיילים</h3>
+          <div class="friends-chips" id="friends-chips"></div>
+          <div class="add-friend-row">
+            <input type="text" id="add-friend-input" class="clean-input" placeholder="שם המטייל…" autocomplete="off" />
+            <select id="add-friend-group-select" class="group-select"></select>
+          </div>
+          <input type="text" id="new-group-name-input" class="clean-input" placeholder="שם הקבוצה החדשה…" autocomplete="off" hidden />
+          <button type="button" class="add-friend-btn add-friend-btn-wide" id="add-friend-btn">הוספה</button>
+        </div>
+
+        <div class="summary-block">
+          <h3>מי חייב למי</h3>
+          <div id="settle-transfers"></div>
+        </div>
+
+        <div class="summary-block">
+          <h3>מאזן לכל אחד</h3>
+          <div id="settle-balances" class="summary-table"></div>
+        </div>
+      </section>
+    </section>
+
+    <button type="button" class="fab-add" id="home-add-btn" aria-label="הוסף הוצאה">+</button>
+
+    <div class="toast" id="toast"></div>
+
+    <div class="sheet-backdrop" id="currency-sheet-backdrop">
+      <div class="sheet">
+        <div class="sheet-handle"></div>
+        <p class="sheet-title" id="sheet-title" hidden></p>
+        <input type="text" id="currency-search" class="clean-input" placeholder="חפש מטבע…" autocomplete="off" />
+        <div class="currency-list" id="currency-list"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
