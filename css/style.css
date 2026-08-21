@@ -408,6 +408,13 @@ input[type="number"] {
   gap: 8px;
 }
 
+#expense-group-block {
+  background: var(--card);
+  border-radius: var(--radius-sm);
+  padding: 14px 18px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+}
+
 .split-label {
   font-size: 0.78rem;
   color: var(--text-muted);
@@ -1018,10 +1025,6 @@ input[type="number"] {
   gap: 12px;
 }
 
-.pace-emoji {
-  font-size: 1.8rem;
-}
-
 .pace-header-text {
   display: flex;
   flex-direction: column;
@@ -1067,57 +1070,24 @@ input[type="number"] {
   margin: 10px 0 0;
 }
 
-.pace-dates-toggle {
-  width: 100%;
-  margin-top: 12px;
-  padding: 10px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--bg);
-  color: var(--text);
-  font-size: 0.82rem;
-  font-family: inherit;
-  cursor: pointer;
-}
-
 .pace-dates-form {
   margin-top: 12px;
   padding-top: 12px;
   border-top: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
+}
+
+.pace-field-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted);
 }
 
 .pace-dates-row {
   display: flex;
   gap: 10px;
-}
-
-.pace-dates-row label {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 0.76rem;
-  color: var(--text-muted);
-}
-
-.pace-dates-row input {
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 8px;
-  font-family: inherit;
-  font-size: 0.85rem;
-  background: var(--bg);
-  color: var(--text);
-}
-
-.pace-dates-save {
-  margin: 0;
-  padding: 10px;
-  background: var(--accent);
-  color: white;
 }
 
 .stat-box {
@@ -1295,28 +1265,18 @@ input[type="number"] {
    (showed up as plain white/invisible on some phones instead of just blank) —
    so the real <input> is a fully invisible tap-target, and a span we control
    completely sits on top showing the date in our own consistent English format */
-.date-field-wrap {
-  position: relative;
-  flex: 1;
-}
-
 .date-field-display {
   display: block;
+  flex: 1;
+  border: none;
   padding: 10px 12px;
   border-radius: var(--radius-sm);
   background: var(--card);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  font-family: inherit;
   font-size: 0.85rem;
   color: var(--text);
   text-align: center;
-}
-
-.date-field-wrap input[type="date"] {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  opacity: 0;
   cursor: pointer;
 }
 
@@ -1405,6 +1365,7 @@ input[type="number"] {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  flex: 1;
   min-width: 0;
 }
 
@@ -1564,9 +1525,12 @@ input[type="number"] {
 }
 
 .group-select {
+  display: block;
+  width: 100%;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  padding: 0 10px;
+  padding: 10px;
+  margin-bottom: 8px;
   background: var(--bg);
   color: var(--text);
   font-family: inherit;
@@ -1652,11 +1616,49 @@ input[type="number"] {
 .activity-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 10px;
   padding: 10px 4px;
   border-bottom: 1px solid var(--border);
   font-size: 0.85rem;
+}
+
+.activity-row .who {
+  flex: 1;
+  min-width: 0;
+}
+
+.activity-row .activity-meta {
+  margin-inline-start: auto;
+}
+
+.date-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: var(--bg);
+  flex-shrink: 0;
+  line-height: 1.1;
+}
+
+.date-badge-month {
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.date-badge-day {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.transfer-icon {
+  font-size: 0.9rem;
 }
 
 .activity-row:last-child {
@@ -1669,9 +1671,39 @@ input[type="number"] {
   white-space: nowrap;
 }
 
+.group-expense-row {
+  width: 100%;
+  border: none;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+  text-align: inherit;
+}
+
+.group-expenses-month-heading {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin: 12px 0 2px;
+}
+
+.group-expenses-month-heading:first-child {
+  margin-top: 0;
+}
+
 .add-friend-row {
   display: flex;
   gap: 8px;
+}
+
+.add-entity-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.add-entity-row .clean-input {
+  flex: 1;
 }
 
 .add-friend-row .clean-input {
@@ -1707,6 +1739,12 @@ input[type="number"] {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
 }
 
+.transfer-row.balance-row {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
 .transfer-main {
   display: flex;
   align-items: center;
@@ -1721,7 +1759,7 @@ input[type="number"] {
   min-width: 0;
 }
 
-.transfer-people .who {
+.who {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -1802,7 +1840,7 @@ input[type="number"] {
   padding: 14px;
   border: none;
   border-radius: var(--radius-sm);
-  background: var(--text);
+  background: var(--accent);
   color: white;
   font-size: 0.92rem;
   font-weight: 600;
@@ -1949,7 +1987,7 @@ input[type="number"] {
 
 .sheet {
   width: 100%;
-  max-height: 70vh;
+  max-height: 85vh;
   background: var(--card);
   border-radius: 24px 24px 0 0;
   padding: 10px 20px 20px;
@@ -2024,6 +2062,111 @@ input[type="number"] {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
+}
+
+.calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 4px 4px 14px;
+}
+
+.calendar-month-label {
+  font-weight: 700;
+  font-size: 0.95rem;
+  min-width: 7em;
+  text-align: center;
+  margin: 0 4px;
+}
+
+.calendar-nav {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: none;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.9rem;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.calendar-daynames {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  margin-bottom: 4px;
+}
+
+.calendar-daynames span {
+  text-align: center;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.calendar-grid.slide-next {
+  animation: calendarSlideNext 0.2s ease;
+}
+
+.calendar-grid.slide-prev {
+  animation: calendarSlidePrev 0.2s ease;
+}
+
+/* the motion itself has to match the arrow's shape, not just which button
+   triggers it: "next" is a right-pointing chevron, so the grid must actually
+   travel rightward (enter from the left, settle at 0) to read as "going the
+   way the arrow points" — independent of which physical side the button sits on */
+@keyframes calendarSlideNext {
+  from {
+    opacity: 0;
+    transform: translateX(-18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes calendarSlidePrev {
+  from {
+    opacity: 0;
+    transform: translateX(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.calendar-cell {
+  aspect-ratio: 1;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: 0.85rem;
+  color: var(--text);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.calendar-cell:hover {
+  background: var(--bg);
+}
+
+.calendar-cell.selected {
+  background: var(--accent);
+  color: white;
+  font-weight: 700;
+}
+
+.calendar-cell-empty {
+  cursor: default;
 }
 
 .currency-row {

@@ -4,8 +4,10 @@ export function personLabel(name) {
   return name === "me" ? "אני" : name;
 }
 
-export function getPeopleList() {
-  return ["me", ...loadFriends().map((f) => f.name)];
+export function getPeopleList(groupId) {
+  const friends = loadFriends();
+  const scoped = groupId ? friends.filter((f) => f.groupId === groupId) : friends;
+  return ["me", ...scoped.map((f) => f.name)];
 }
 
 const AVATAR_COLORS = ["#007aff", "#34c759", "#ff9500", "#ff3b30", "#af52de", "#5856d6", "#00c7be", "#ff2d55"];

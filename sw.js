@@ -1,4 +1,4 @@
-const CACHE_NAME = "expense-tracker-v1";
+const CACHE_NAME = "expense-tracker-v2";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -33,25 +33,23 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
-// stale-while-revalidate for the app's own files: instant load (works offline),
-// while quietly refreshing the cache in the background so edits still show up
-// next launch — no manual cache-version bump needed for normal content changes.
-// cross-origin requests (geo/currency APIs, the ExcelJS CDN script) pass straight
-// through untouched; they already fail gracefully offline on their own.
+// network-first for the app's own files: always serve the freshest HTML/JS/CSS
+// when there's a connection (a stale HTML+JS combo is worse than no cache at all
+// — mismatched element IDs between an old page and new script throw and can
+// silently break half the app), and only fall back to the cache when actually
+// offline. Cross-origin requests (geo/currency APIs, the ExcelJS CDN script)
+// pass straight through untouched; they already fail gracefully offline on their own.
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
   const url = new URL(event.request.url);
   if (url.origin !== location.origin) return;
 
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      const network = fetch(event.request)
-        .then((response) => {
-          if (response.ok) caches.open(CACHE_NAME).then((cache) => cache.put(event.request, response.clone()));
-          return response;
-        })
-        .catch(() => cached);
-      return cached || network;
-    })
+    fetch(event.request)
+      .then((response) => {
+        if (response.ok) caches.open(CACHE_NAME).then((cache) => cache.put(event.request, response.clone()));
+        return response;
+      })
+      .catch(() => caches.match(event.request))
   );
 });

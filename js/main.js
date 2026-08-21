@@ -71,6 +71,7 @@ const detailsCloseBtn = document.getElementById("details-close-btn");
 const noteInput = document.getElementById("note-input");
 const isGroupInput = document.getElementById("is-group");
 const splitField = document.getElementById("split-field");
+const expenseGroupChipsEl = document.getElementById("expense-group-chips");
 const paidByChipsEl = document.getElementById("paid-by-chips");
 const participantsChipsEl = document.getElementById("participants-chips");
 const splitModeChipsEl = document.getElementById("split-mode-chips");
@@ -98,6 +99,7 @@ const filterDaysList = document.getElementById("filter-days-list");
 const filterEmptyState = document.getElementById("filter-empty-state");
 
 const homeAddBtn = document.getElementById("home-add-btn");
+const groupAddBtn = document.getElementById("group-add-btn");
 const toastEl = document.getElementById("toast");
 const daysList = document.getElementById("days-list");
 const emptyState = document.getElementById("empty-state");
@@ -118,7 +120,10 @@ const friendsCountEl = document.getElementById("friends-count");
 const groupScreenBackBtn = document.getElementById("group-screen-back-btn");
 const groupScreenTitle = document.getElementById("group-screen-title");
 const groupScreenMembers = document.getElementById("group-screen-members");
+const groupScreenBalances = document.getElementById("group-screen-balances");
 const groupScreenEmpty = document.getElementById("group-screen-empty");
+const groupScreenExpensesBlock = document.getElementById("group-screen-expenses-block");
+const groupScreenExpenses = document.getElementById("group-screen-expenses");
 const groupScreenActivityBlock = document.getElementById("group-screen-activity-block");
 const groupScreenActivity = document.getElementById("group-screen-activity");
 const groupScreenAddExisting = document.getElementById("group-screen-add-existing");
@@ -132,16 +137,17 @@ const personScreenExpenses = document.getElementById("person-screen-expenses");
 const personScreenExpensesEmpty = document.getElementById("person-screen-expenses-empty");
 const personScreenActivityBlock = document.getElementById("person-screen-activity-block");
 const personScreenActivity = document.getElementById("person-screen-activity");
+const personScreenGroupsBlock = document.getElementById("person-screen-groups-block");
+const personScreenGroups = document.getElementById("person-screen-groups");
 const groupPhotoWrap = document.getElementById("group-photo-wrap");
 const groupPhotoBtn = document.getElementById("group-photo-btn");
 const groupPhotoInput = document.getElementById("group-photo-input");
 const addFriendGroupSelect = document.getElementById("add-friend-group-select");
-const addGroupInput = document.getElementById("add-group-input");
-const addGroupBtn = document.getElementById("add-group-btn");
 const friendsListEl = document.getElementById("friends-list");
 const friendsEmptyEl = document.getElementById("friends-empty");
-const addFriendInput = document.getElementById("add-friend-input");
-const addFriendBtn = document.getElementById("add-friend-btn");
+const addEntityInput = document.getElementById("add-entity-input");
+const addEntityBtn = document.getElementById("add-entity-btn");
+const entityTypeToggle = document.getElementById("entity-type-toggle");
 const settleOweTotal = document.getElementById("settle-owe-total");
 const settleOwedTotal = document.getElementById("settle-owed-total");
 const statToday = document.getElementById("stat-today");
@@ -149,15 +155,9 @@ const funFactEl = document.getElementById("fun-fact");
 const paceCard = document.getElementById("pace-card");
 const paceTotal = document.getElementById("pace-total");
 const paceStats = document.getElementById("pace-stats");
-const paceDatesToggle = document.getElementById("pace-dates-toggle");
-const paceDatesForm = document.getElementById("pace-dates-form");
-const paceDatesSave = document.getElementById("pace-dates-save");
-const tripStartInput = document.getElementById("trip-start-input");
-const tripEndInput = document.getElementById("trip-end-input");
+const tripStartDisplay = document.getElementById("trip-start-display");
+const tripEndDisplay = document.getElementById("trip-end-display");
 const paceBudgetLine = document.getElementById("pace-budget-line");
-const paceBudgetToggle = document.getElementById("pace-budget-toggle");
-const paceBudgetForm = document.getElementById("pace-budget-form");
-const paceBudgetSave = document.getElementById("pace-budget-save");
 const tripBudgetInput = document.getElementById("trip-budget-input");
 const monthStatBtn = document.getElementById("month-stat-btn");
 const monthStatLabel = document.getElementById("month-stat-label");
@@ -165,8 +165,6 @@ const monthStatValue = document.getElementById("month-stat-value");
 const countryStatBtn = document.getElementById("country-stat-btn");
 const countryStatLabel = document.getElementById("country-stat-label");
 const countryStatValue = document.getElementById("country-stat-value");
-const rangeFrom = document.getElementById("range-from");
-const rangeTo = document.getElementById("range-to");
 const rangeFromDisplay = document.getElementById("range-from-display");
 const rangeToDisplay = document.getElementById("range-to-display");
 const rangeResult = document.getElementById("range-result");
@@ -196,11 +194,28 @@ let currentExpenseId = null;
 let previousScreen = "home";
 let currentFilter = null; // { type: 'country'|'month', value }
 let editingExpenseId = null; // set when the category screen is opened to edit an existing expense
+let currentGroupId = null; // the group screen currently being viewed, for the group's own "+" button
+let pendingGroupParticipants = null; // set by "+ add expense" from a group screen, consumed once when the group-purchase toggle turns on
+let pendingGroupId = null; // the group id paired with pendingGroupParticipants, pre-selects the details-screen group picker
+let addReturnGroupId = null; // set when the add-flow was launched from a group's own "+" button, so finishing/cancelling lands back there instead of home
 
 // ---------- helpers ----------
 
 function formatNumber(n) {
   return (n ?? 0).toLocaleString("he-IL", { maximumFractionDigits: 2 });
+}
+
+// live thousand-separator formatting for plain-text number inputs (not
+// type="number", which rejects commas outright)
+function formatThousands(value) {
+  const clean = value.replace(/[^\d.]/g, "");
+  const [intPart, ...rest] = clean.split(".");
+  const withCommas = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return rest.length ? `${withCommas}.${rest.join("")}` : withCommas;
+}
+
+function parseThousands(value) {
+  return Number(value.replace(/,/g, ""));
 }
 
 // the currency every total/balance in the app is displayed in — every amount
@@ -244,6 +259,15 @@ function formatMonth(monthStr) {
 function showScreen(name) {
   screens.forEach((el) => el.classList.toggle("active", el.id === `screen-${name}`));
   homeAddBtn.classList.toggle("visible", name === "home");
+  groupAddBtn.classList.toggle("visible", name === "group");
+}
+
+// finishing or cancelling the add-expense wizard should land back wherever it
+// was launched from — home for the home "+" button, the group screen for a
+// group's own "+" button — not always jump to the home list.
+function exitAddFlow() {
+  if (addReturnGroupId) openGroupScreen(addReturnGroupId);
+  else showScreen("home");
 }
 
 // ---------- location + currency detection ----------
@@ -357,6 +381,77 @@ function openCountryEditPicker(onSelect) {
   setTimeout(() => currencySearch.focus(), 300);
 }
 
+// a real month-grid calendar, built and controlled entirely by us — native
+// <input type="date"> pickers turned out to render inconsistently (or not
+// visibly at all) across phones/browsers, so this replaces them everywhere
+// a date needs picking, reusing the same shared bottom sheet as everything else.
+const CALENDAR_DAY_NAMES = ["א", "ב", "ג", "ד", "ה", "ו", "ש"];
+let calendarViewDate = new Date();
+let calendarSelectedDate = null;
+let calendarOnSelect = null;
+
+function goToCalendarMonth(year, month, direction) {
+  calendarViewDate = new Date(year, month, 1);
+  renderCalendarSheet(direction);
+}
+
+// direction: "next" | "prev" | null (null = no slide, e.g. first open) — drives
+// which way the grid animates in, so paging feels like moving along a timeline
+function renderCalendarSheet(direction) {
+  const year = calendarViewDate.getFullYear();
+  const month = calendarViewDate.getMonth();
+  const firstWeekday = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  let cells = "";
+  for (let i = 0; i < firstWeekday; i++) cells += `<span class="calendar-cell calendar-cell-empty"></span>`;
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    const selected = dateStr === calendarSelectedDate ? " selected" : "";
+    cells += `<button type="button" class="calendar-cell${selected}" data-date="${dateStr}">${d}</button>`;
+  }
+
+  // RTL: the first DOM child renders rightmost. In this app "forward in time"
+  // reads right-to-left like the text does, so the right-hand buttons must be
+  // the ones that move forward (next) — English-style right=back would feel
+  // backwards to a Hebrew reader, which is exactly what was reported.
+  const slideClass = direction ? ` slide-${direction}` : "";
+  currencyListEl.innerHTML = `
+    <div class="calendar-header">
+      <button type="button" class="calendar-nav" id="calendar-next-year" aria-label="שנה הבאה">»</button>
+      <button type="button" class="calendar-nav" id="calendar-next" aria-label="חודש הבא">›</button>
+      <span class="calendar-month-label">${MONTH_NAMES[month]} ${year}</span>
+      <button type="button" class="calendar-nav" id="calendar-prev" aria-label="חודש קודם">‹</button>
+      <button type="button" class="calendar-nav" id="calendar-prev-year" aria-label="שנה קודמת">«</button>
+    </div>
+    <div class="calendar-daynames">${CALENDAR_DAY_NAMES.map((n) => `<span>${n}</span>`).join("")}</div>
+    <div class="calendar-grid${slideClass}">${cells}</div>
+  `;
+
+  document.getElementById("calendar-next-year").addEventListener("click", () => goToCalendarMonth(year + 1, month, "next"));
+  document.getElementById("calendar-next").addEventListener("click", () => goToCalendarMonth(year, month + 1, "next"));
+  document.getElementById("calendar-prev").addEventListener("click", () => goToCalendarMonth(year, month - 1, "prev"));
+  document.getElementById("calendar-prev-year").addEventListener("click", () => goToCalendarMonth(year - 1, month, "prev"));
+  currencyListEl.querySelectorAll(".calendar-cell:not(.calendar-cell-empty)").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const dateStr = btn.dataset.date;
+      closeCurrencySheet();
+      calendarOnSelect?.(dateStr);
+    });
+  });
+}
+
+function openCalendarPicker(initialDateStr, onSelect) {
+  sheetMode = "calendar";
+  calendarOnSelect = onSelect;
+  calendarSelectedDate = initialDateStr || null;
+  calendarViewDate = initialDateStr ? new Date(initialDateStr + "T00:00:00") : new Date();
+  sheetTitle.hidden = true;
+  currencySearch.hidden = true;
+  renderCalendarSheet(null);
+  sheetBackdrop.classList.add("open");
+}
+
 function openMonthCountryPicker(mode) {
   sheetMode = mode;
   currencySearch.hidden = true;
@@ -433,6 +528,9 @@ function resetPhotoField() {
 
 function startNewExpense() {
   draft = { category: null, photo: null, isIncome: false };
+  pendingGroupParticipants = null;
+  pendingGroupId = null;
+  addReturnGroupId = null;
   amountInput.value = "";
   amountContinue.disabled = true;
   selected = { code: context.currency, rate: context.rate };
@@ -441,6 +539,19 @@ function startNewExpense() {
   amountDisplay.classList.remove("income");
   showScreen("amount");
   setTimeout(() => amountInput.focus(), 300);
+}
+
+// "+" from a specific group's screen — same wizard, but the group-purchase
+// toggle will already be on with this group's members pre-selected once we
+// reach the details screen (see the category-tile handler and isGroupInput above)
+function startNewExpenseForGroup(groupId) {
+  startNewExpense();
+  addReturnGroupId = groupId;
+  const memberNames = [...new Set(loadFriends().filter((f) => f.groupId === groupId).map((f) => f.name))];
+  if (memberNames.length) {
+    pendingGroupParticipants = ["me", ...memberNames];
+    pendingGroupId = groupId;
+  }
 }
 
 entryTypeToggle.addEventListener("click", (e) => {
@@ -492,12 +603,19 @@ function initCategoryGrid() {
     draft.category = btn.dataset.id;
     draft.paidBy = "me";
     draft.participants = ["me"];
+    draft.groupId = pendingGroupId || "";
     noteInput.value = "";
-    isGroupInput.checked = false;
-    splitField.hidden = true;
     excludeInput.checked = false;
     detailsDateInput.value = new Date().toISOString().slice(0, 10);
     resetPhotoField();
+    renderExpenseGroupChips(draft.groupId);
+    if (pendingGroupParticipants) {
+      isGroupInput.checked = true;
+      isGroupInput.dispatchEvent(new Event("change"));
+    } else {
+      isGroupInput.checked = false;
+      splitField.hidden = true;
+    }
     showScreen("details");
     setTimeout(() => noteInput.focus(), 300);
   });
@@ -512,22 +630,22 @@ function addFriend(name, groupId = null) {
   saveFriends(friends);
 }
 
-function renderPaidByChips(container, selected, onChange) {
-  container.innerHTML = getPeopleList()
+function renderPaidByChips(container, selected, onChange, groupId) {
+  container.innerHTML = getPeopleList(groupId)
     .map((name) => `<button type="button" class="chip ${name === selected ? "selected" : ""}" data-name="${name}">${personLabel(name)}</button>`)
     .join("");
   container.querySelectorAll(".chip").forEach((chip) => {
     chip.addEventListener("click", () => {
       onChange(chip.dataset.name);
-      renderPaidByChips(container, chip.dataset.name, onChange);
+      renderPaidByChips(container, chip.dataset.name, onChange, groupId);
     });
   });
 }
 
-function renderParticipantsChips(container, selected, onToggle) {
+function renderParticipantsChips(container, selected, onToggle, groupId) {
   const addId = `${container.id}-add`;
   container.innerHTML =
-    getPeopleList()
+    getPeopleList(groupId)
       .map((name) => `<button type="button" class="chip ${selected.includes(name) ? "selected" : ""}" data-name="${name}">${personLabel(name)}</button>`)
       .join("") + `<button type="button" class="chip add-chip" id="${addId}">+ הוסף</button>`;
 
@@ -536,17 +654,17 @@ function renderParticipantsChips(container, selected, onToggle) {
       const name = chip.dataset.name;
       const next = selected.includes(name) ? selected.filter((n) => n !== name) : [...selected, name];
       onToggle(next);
-      renderParticipantsChips(container, next, onToggle);
+      renderParticipantsChips(container, next, onToggle, groupId);
     });
   });
 
   document.getElementById(addId).addEventListener("click", () => {
     const name = prompt("שם המטייל?")?.trim();
     if (!name) return;
-    addFriend(name);
-    renderParticipantsChips(container, selected, onToggle);
+    addFriend(name, groupId || null);
+    renderParticipantsChips(container, selected, onToggle, groupId);
     if (container === participantsChipsEl) {
-      renderPaidByChips(paidByChipsEl, draft.paidBy, (n) => (draft.paidBy = n));
+      renderPaidByChips(paidByChipsEl, draft.paidBy, (n) => (draft.paidBy = n), groupId);
     }
   });
 }
@@ -650,39 +768,114 @@ function refreshSplitAmounts() {
   );
 }
 
-isGroupInput.addEventListener("change", () => {
-  splitField.hidden = !isGroupInput.checked;
-  if (!isGroupInput.checked) return;
-  const last = loadLastSplit();
-  // who paid defaults to "me" every time — only the participant list is worth
-  // remembering from last time, paying is the less common case and shouldn't stick
+// group chips sit above the "קניה קבוצתית" checkbox and are always visible —
+// picking a real group there both scopes who-paid/participants to that
+// group's members and auto-turns group-purchase on; picking "ללא קבוצה"
+// just clears the scoping (only visibly matters once group-purchase is on).
+function renderExpenseGroupChips(selectedId) {
+  const options = [{ id: "", name: "ללא קבוצה" }, ...loadGroups()];
+  expenseGroupChipsEl.innerHTML = options
+    .map((g) => `<button type="button" class="chip ${g.id === (selectedId || "") ? "selected" : ""}" data-id="${g.id}">${g.name}</button>`)
+    .join("");
+  expenseGroupChipsEl.querySelectorAll(".chip").forEach((chip) => {
+    chip.addEventListener("click", () => selectExpenseGroup(chip.dataset.id));
+  });
+}
+
+function setSplitParticipantsForGroup(groupId) {
+  const memberNames = groupId
+    ? [...new Set(loadFriends().filter((f) => f.groupId === groupId).map((f) => f.name))]
+    : [];
   draft.paidBy = "me";
-  draft.participants = last.participants?.length ? last.participants : ["me"];
-  draft.splitMode = "equal";
+  draft.participants = groupId ? ["me", ...memberNames] : ["me"];
   draft.customAmounts = {};
   draft.customPercents = {};
-  renderPaidByChips(paidByChipsEl, draft.paidBy, (name) => (draft.paidBy = name));
-  renderParticipantsChips(participantsChipsEl, draft.participants, (list) => {
-    draft.participants = list;
-    refreshSplitAmounts();
-  });
-  renderSplitModeChips(splitModeChipsEl, draft.splitMode, (mode) => {
-    draft.splitMode = mode;
-    refreshSplitAmounts();
-  });
-  refreshSplitAmounts();
-  // the split panel just expanded below the fold — follow it all the way down
-  // so the "הוספה" button past it stays reachable without a manual scroll
-  // (scrolling splitField itself into view isn't enough: the button comes after it).
-  // double rAF: wait a full extra frame so layout has actually settled before
-  // measuring scrollHeight, and overshoot the target — scrollTo clamps to the
-  // real max automatically, so this is safe and guarantees reaching the bottom.
+}
+
+function renderSplitPickers(groupId) {
+  renderPaidByChips(paidByChipsEl, draft.paidBy, (name) => (draft.paidBy = name), groupId);
+  renderParticipantsChips(
+    participantsChipsEl,
+    draft.participants,
+    (list) => {
+      draft.participants = list;
+      refreshSplitAmounts();
+    },
+    groupId
+  );
+}
+
+// the split panel just expanded below the fold — follow it all the way down
+// so the "הוספה" button past it stays reachable without a manual scroll
+// (scrolling splitField itself into view isn't enough: the button comes after it).
+// double rAF: wait a full extra frame so layout has actually settled before
+// measuring scrollHeight, and overshoot the target — scrollTo clamps to the
+// real max automatically, so this is safe and guarantees reaching the bottom.
+function scrollDetailsToBottom() {
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       const screen = document.getElementById("screen-details");
       screen.scrollTo({ top: screen.scrollHeight + 400, behavior: "smooth" });
     });
   });
+}
+
+function selectExpenseGroup(groupId) {
+  draft.groupId = groupId;
+  renderExpenseGroupChips(groupId);
+  setSplitParticipantsForGroup(groupId);
+
+  if (groupId && !isGroupInput.checked) {
+    isGroupInput.checked = true;
+    splitField.hidden = false;
+    draft.splitMode = "equal";
+    renderSplitModeChips(splitModeChipsEl, draft.splitMode, (mode) => {
+      draft.splitMode = mode;
+      refreshSplitAmounts();
+    });
+    scrollDetailsToBottom();
+  }
+
+  if (isGroupInput.checked) {
+    renderSplitPickers(groupId);
+    refreshSplitAmounts();
+  }
+}
+
+isGroupInput.addEventListener("change", () => {
+  splitField.hidden = !isGroupInput.checked;
+  if (!isGroupInput.checked) return;
+  const last = loadLastSplit();
+  const groupId = pendingGroupId || draft.groupId || "";
+  pendingGroupId = null;
+  draft.groupId = groupId;
+  renderExpenseGroupChips(groupId);
+
+  if (pendingGroupParticipants) {
+    draft.paidBy = "me";
+    draft.participants = pendingGroupParticipants;
+    draft.customAmounts = {};
+    draft.customPercents = {};
+    pendingGroupParticipants = null;
+  } else if (groupId) {
+    setSplitParticipantsForGroup(groupId);
+  } else {
+    // who paid defaults to "me" every time — only the participant list is worth
+    // remembering from last time, paying is the less common case and shouldn't stick.
+    draft.paidBy = "me";
+    draft.participants = last.participants?.length ? last.participants : ["me"];
+    draft.customAmounts = {};
+    draft.customPercents = {};
+  }
+
+  draft.splitMode = "equal";
+  renderSplitPickers(groupId);
+  renderSplitModeChips(splitModeChipsEl, draft.splitMode, (mode) => {
+    draft.splitMode = mode;
+    refreshSplitAmounts();
+  });
+  refreshSplitAmounts();
+  scrollDetailsToBottom();
 });
 
 detailsAddPhotoBtn.addEventListener("click", () => detailsPhotoInput.click());
@@ -723,7 +916,7 @@ async function handleDetailsDone() {
   });
 
   render();
-  showScreen("home");
+  exitAddFlow();
 }
 
 // ---------- shared: expense row rendering + swipe-to-delete ----------
@@ -851,15 +1044,23 @@ function renderList() {
   emptyState.style.display = totalCount ? "none" : "block";
 }
 
+// picked one at a time via two separate button taps, so these need to persist
+// in memory between the two taps — storage only gets written once both are known
+let tripStartValue = "";
+let tripEndValue = "";
+
 function renderPace() {
   const total = getGrandTotal();
   paceTotal.textContent = formatILS(total);
 
   const trip = loadTripDates();
-  paceDatesToggle.textContent = trip?.start && trip?.end ? "📅 עריכת תאריכי טיול" : "📅 הגדרת תאריכי טיול";
+  tripStartValue = trip?.start ?? tripStartValue;
+  tripEndValue = trip?.end ?? tripEndValue;
+  tripStartDisplay.textContent = tripStartValue ? formatShortDate(tripStartValue) : "התחלה";
+  tripEndDisplay.textContent = tripEndValue ? formatShortDate(tripEndValue) : "סיום";
 
   const budget = loadTripBudget();
-  paceBudgetToggle.textContent = budget ? "💰 עריכת תקציב טיול" : "💰 הגדרת תקציב טיול";
+  if (document.activeElement !== tripBudgetInput) tripBudgetInput.value = budget ? formatThousands(String(budget)) : "";
 
   if (!trip?.start || !trip?.end) {
     paceStats.innerHTML = `<p class="pace-hint">הגדר תאריכי טיול כדי לראות קצב הוצאות וימי טיול</p>`;
@@ -997,27 +1198,32 @@ function formatShortDate(dateStr) {
   return `${MONTH_NAMES_EN[month - 1]} ${day}`;
 }
 
-function renderRange() {
-  // the real <input type="date"> is a fully invisible overlay (see .date-field-wrap
-  // input in CSS) — these spans are the only thing actually shown, so they're
-  // the only place a picked date needs to render, always in our own format
-  rangeFromDisplay.textContent = rangeFrom.value ? formatShortDate(rangeFrom.value) : "מתאריך";
-  rangeToDisplay.textContent = rangeTo.value ? formatShortDate(rangeTo.value) : "עד תאריך";
+// YYYY-MM-DD strings — there's no native <input type="date"> backing these
+// anymore (see openCalendarPicker), so the picked range lives here instead
+let rangeFromValue = "";
+let rangeToValue = "";
 
-  if (!rangeFrom.value || !rangeTo.value) {
+function renderRange() {
+  rangeFromDisplay.textContent = rangeFromValue ? formatShortDate(rangeFromValue) : "מתאריך";
+  rangeToDisplay.textContent = rangeToValue ? formatShortDate(rangeToValue) : "עד תאריך";
+
+  if (!rangeFromValue || !rangeToValue) {
     rangeResult.textContent = "";
     return;
   }
-  const total = getTotalForRange(rangeFrom.value, rangeTo.value);
+  const total = getTotalForRange(rangeFromValue, rangeToValue);
   rangeResult.textContent = formatILS(total);
 }
 
 // ---------- settle-up (friends) tab ----------
 
 function removeFriend(name) {
-  const balance = getFriendBalances()[name] ?? 0;
+  // gate on the balance directly with me, not the person's raw global balance —
+  // that raw number can be nonzero purely from debts routed through other people
+  // in the simplified graph and having nothing to do with me. see getMyBalanceWith.
+  const balance = getMyBalanceWith(name);
   if (Math.abs(balance) > 0.01) {
-    const owes = balance < 0 ? `${personLabel(name)} חייב/ת ${formatILS(-balance)}` : `מגיע ל${personLabel(name)} ${formatILS(balance)}`;
+    const owes = balance > 0 ? `${personLabel(name)} חייב/ת לך ${formatILS(balance)}` : `אתה חייב ל${personLabel(name)} ${formatILS(-balance)}`;
     if (!confirm(`יש חוב פתוח: ${owes}. להסיר בכל זאת?`)) return;
   }
   saveFriends(loadFriends().filter((f) => f.name !== name));
@@ -1119,23 +1325,69 @@ function copyInviteLink(groupId, groupName, message = "קישור הועתק") {
     });
 }
 
-// my net position vs. this group's members specifically, derived from the
-// already-simplified transfer graph (so it accounts for the whole trip's debts,
-// not just expenses tagged to this group — there's no such tag).
+// there's no per-expense "group" tag, so a group's own balance can only be built
+// from expenses that are fully internal to it — every payer/participant is either
+// "me" or a member of this specific group. Pulling from the whole-trip simplified
+// graph instead (as this used to) leaks in people who were never in the group at
+// all, whenever the global optimizer happened to route a transfer through them.
+function getGroupExpenses(memberNames) {
+  const allowed = new Set(["me", ...memberNames]);
+  return getExpenses().filter((e) => {
+    if (!e.isGroup) return false;
+    const names = new Set((e.participants ?? []).map((p) => (typeof p === "object" ? p.name : p)));
+    names.add(e.paidBy || "me");
+    return [...names].every((n) => allowed.has(n));
+  });
+}
+
+function getGroupBalances(memberNames) {
+  const balances = {};
+  for (const e of getGroupExpenses(memberNames)) {
+    const payer = e.paidBy || "me";
+    balances[payer] = (balances[payer] ?? 0) + e.amountILS;
+    const participants = e.participants ?? [];
+    if (typeof participants[0] === "object") {
+      for (const p of participants) balances[p.name] = (balances[p.name] ?? 0) - p.amount;
+    } else {
+      const share = e.amountILS / participants.length;
+      for (const name of participants) balances[name] = (balances[name] ?? 0) - share;
+    }
+  }
+  const allowed = new Set(["me", ...memberNames]);
+  for (const s of loadSettlements()) {
+    if (allowed.has(s.from) && allowed.has(s.to)) {
+      balances[s.from] = (balances[s.from] ?? 0) + s.amount;
+      balances[s.to] = (balances[s.to] ?? 0) - s.amount;
+    }
+  }
+  return balances;
+}
+
+// my net position vs. this group's members specifically — a closed, self-consistent
+// sub-ledger of only this group's members, not a slice of the whole-trip graph.
 function getMyGroupBalance(groupId) {
   const memberNames = new Set(loadFriends().filter((f) => f.groupId === groupId).map((f) => f.name));
-  const transfers = simplifyDebts(getFriendBalances());
-  let net = 0;
-  for (const t of transfers) {
-    if (t.from === "me" && memberNames.has(t.to)) net -= t.amount;
-    if (t.to === "me" && memberNames.has(t.from)) net += t.amount;
-  }
-  return round2(net);
+  return round2(getGroupBalances(memberNames).me ?? 0);
 }
 
 // my net position vs. one specific person, same simplified-graph logic as getMyGroupBalance
 function getMyBalanceWith(name) {
   const transfers = simplifyDebts(getFriendBalances());
+  let net = 0;
+  for (const t of transfers) {
+    if (t.from === "me" && t.to === name) net -= t.amount;
+    if (t.to === "me" && t.from === name) net += t.amount;
+  }
+  return round2(net);
+}
+
+// my net position with one specific person, scoped to a single group's closed
+// sub-ledger — same idea as getMyBalanceWith, but restricted to that group's
+// members so it doesn't get muddied by debts the two of us have elsewhere.
+function getMyBalanceWithInGroup(name, groupId) {
+  const memberNames = new Set(loadFriends().filter((f) => f.groupId === groupId).map((f) => f.name));
+  if (!memberNames.has(name)) return 0;
+  const transfers = simplifyDebts(getGroupBalances(memberNames));
   let net = 0;
   for (const t of transfers) {
     if (t.from === "me" && t.to === name) net -= t.amount;
@@ -1222,11 +1474,15 @@ function addExistingFriendToGroup(name, groupId) {
 }
 
 // shared transfer-row renderer: used by the group screen's "charges" list
+// a small, consistent symbol vocabulary across every settle-related list:
+// ⏳ = open charge (still needs settling), ✓ = already settled, and a regular
+// expense just uses its own category icon (🍔 etc.) — no separate symbol needed
 function transferRowHtml(t, i) {
   return `
         <div class="transfer-row">
           <div class="transfer-main">
             <div class="transfer-people">
+              <span class="transfer-icon">⏳</span>
               <span class="who">${avatarHtml(t.from)} ${personLabel(t.from)}</span>
               <span class="transfer-arrow">חייב ל</span>
               <span class="who">${avatarHtml(t.to)} ${personLabel(t.to)}</span>
@@ -1237,6 +1493,20 @@ function transferRowHtml(t, i) {
             <button type="button" class="settle-btn" data-i="${i}">לקזז</button>
             <button type="button" class="quickpay-btn" data-amount="${t.amount}">📋 העתקת הסכום</button>
           </div>
+        </div>`;
+}
+
+// read-only — shows every member's own net position within the group's closed
+// sub-ledger, no settle action (settling only makes sense for a debt that's mine)
+function groupMemberBalanceRowHtml(name, balances) {
+  const amount = round2(balances[name] ?? 0);
+  const isZero = Math.abs(amount) <= 0.01;
+  const cls = isZero ? "balance-zero" : amount > 0 ? "balance-positive" : "balance-negative";
+  const text = isZero ? "מאופס" : `${amount > 0 ? "+" : ""}${formatILS(amount)}`;
+  return `
+        <div class="transfer-row balance-row">
+          <span class="who">${avatarHtml(name)} ${personLabel(name)}</span>
+          <span class="${cls}">${text}</span>
         </div>`;
 }
 
@@ -1286,8 +1556,9 @@ function settlementLine(s) {
 }
 
 function groupActivityRows(memberNames) {
+  const allowed = new Set(["me", ...memberNames]);
   return loadSettlements()
-    .filter((s) => memberNames.has(s.from) || memberNames.has(s.to))
+    .filter((s) => allowed.has(s.from) && allowed.has(s.to))
     .sort((a, b) => (b.date || "").localeCompare(a.date || ""))
     .map(
       (s) => `
@@ -1302,26 +1573,42 @@ function groupActivityRows(memberNames) {
 function openGroupScreen(groupId) {
   const group = loadGroups().find((g) => g.id === groupId);
   if (!group) return;
+  currentGroupId = groupId;
 
   const friends = loadFriends();
   const memberNames = new Set(friends.filter((f) => f.groupId === groupId).map((f) => f.name));
-  const transfers = simplifyDebts(getFriendBalances()).filter((t) => memberNames.has(t.from) || memberNames.has(t.to));
+  const groupBalances = getGroupBalances(memberNames);
+  // "חיובים" is my own to-do list, so only transfers I'm actually a party to belong
+  // there — a debt between two other members shows up in the balance list below
+  // instead, without a settle action (settling something that isn't yours makes no sense)
+  const myTransfers = simplifyDebts(groupBalances).filter((t) => t.from === "me" || t.to === "me");
 
   groupScreenTitle.textContent = group.name;
   groupPhotoBtn.dataset.groupId = groupId;
   groupPhotoBtn.innerHTML = group.photo ? `<img src="${group.photo}" alt="" />` : `<span>${group.name.trim()[0] || "?"}</span>`;
   groupPhotoBtn.style.background = group.photo ? "none" : avatarColor(group.name);
 
-  renderTransferRows(groupScreenMembers, transfers, () => openGroupScreen(groupId));
+  renderTransferRows(groupScreenMembers, myTransfers, () => openGroupScreen(groupId));
   if (memberNames.size === 0) {
     groupScreenEmpty.textContent = "אין מטיילים בקבוצה הזו עדיין";
     groupScreenEmpty.hidden = false;
-  } else if (transfers.length === 0) {
-    groupScreenEmpty.textContent = "הכל מסודר בקבוצה הזו 🎉";
+  } else if (myTransfers.length === 0) {
+    groupScreenEmpty.textContent = "אין לך חיובים פתוחים בקבוצה הזו 🎉";
     groupScreenEmpty.hidden = false;
   } else {
     groupScreenEmpty.hidden = true;
   }
+
+  groupScreenBalances.innerHTML = ["me", ...memberNames]
+    .map((name) => groupMemberBalanceRowHtml(name, groupBalances))
+    .join("");
+
+  const groupExpenses = getGroupExpenses(memberNames);
+  groupScreenExpensesBlock.hidden = groupExpenses.length === 0;
+  groupScreenExpenses.innerHTML = groupExpensesByMonthHtml(groupExpenses);
+  groupScreenExpenses.querySelectorAll(".group-expense-row").forEach((btn) => {
+    btn.addEventListener("click", () => openExpenseDetail(btn.dataset.id, "home"));
+  });
 
   const activityHtml = groupActivityRows(memberNames);
   groupScreenActivityBlock.hidden = !activityHtml;
@@ -1345,13 +1632,47 @@ function expenseInvolves(e, name) {
   return names.has("me") && names.has(name);
 }
 
+// compact "calendar icon" style date badge — month abbreviation over the day
+// number — instead of a full "יום רביעי, 19 באוגוסט" string crammed into the row
+function dateBadgeHtml(dateStr) {
+  const [, month, day] = dateStr.split("-").map(Number);
+  return `<span class="date-badge"><span class="date-badge-month">${MONTH_NAMES_EN[month - 1]}</span><span class="date-badge-day">${day}</span></span>`;
+}
+
 function personExpenseRowHtml(e) {
   const cat = getCategory(e.category);
   return `
         <div class="activity-row">
+          ${dateBadgeHtml(e.date)}
           <span class="who">${cat.icon} ${e.note || cat.label}</span>
-          <span class="activity-meta">${formatILS(myShare(e))} · ${formatDay(e.date)}</span>
+          <span class="activity-meta">${formatILS(myShare(e))}</span>
         </div>`;
+}
+
+function groupExpenseRowHtml(e) {
+  const cat = getCategory(e.category);
+  return `
+        <button type="button" class="activity-row group-expense-row" data-id="${e.id}">
+          ${dateBadgeHtml(e.date)}
+          <span class="who">${cat.icon} ${e.note || cat.label}</span>
+          <span class="activity-meta">${formatILS(e.amountILS)}</span>
+        </button>`;
+}
+
+// expenses arrive newest-first (getExpenses()'s order), so a single pass is
+// enough to drop a small month heading in whenever the month actually changes
+function groupExpensesByMonthHtml(expenses) {
+  let html = "";
+  let lastMonth = null;
+  for (const e of expenses) {
+    const month = e.date.slice(0, 7);
+    if (month !== lastMonth) {
+      html += `<div class="group-expenses-month-heading">${formatMonth(month)}</div>`;
+      lastMonth = month;
+    }
+    html += groupExpenseRowHtml(e);
+  }
+  return html;
 }
 
 function personActivityRows(name) {
@@ -1382,6 +1703,33 @@ function personActivityRows(name) {
     .join("");
 }
 
+function personGroupRowHtml(group, amount) {
+  const text = amount > 0 ? `חייב/ת לך ${formatILS(amount)}` : `אתה חייב ${formatILS(-amount)}`;
+  const cls = amount > 0 ? "balance-positive" : "balance-negative";
+  return `
+        <button type="button" class="activity-row group-expense-row person-group-row" data-group-id="${group.id}">
+          ${groupAvatarHtml(group)}
+          <span class="who">${group.name}</span>
+          <span class="activity-meta ${cls}">${text}</span>
+        </button>`;
+}
+
+// the overall balance shown up top is one number from the simplified whole-trip
+// graph, which can route a debt through someone else and obscure where it
+// actually came from — this breaks it back out per group so "he owes me" is
+// traceable to an actual group instead of being a single opaque figure.
+function renderPersonGroupBreakdown(name) {
+  const groups = loadGroups().filter((g) => loadFriends().some((f) => f.name === name && f.groupId === g.id));
+  const rows = groups
+    .map((group) => ({ group, amount: getMyBalanceWithInGroup(name, group.id) }))
+    .filter((r) => Math.abs(r.amount) > 0.01);
+  personScreenGroupsBlock.hidden = rows.length === 0;
+  personScreenGroups.innerHTML = rows.map((r) => personGroupRowHtml(r.group, r.amount)).join("");
+  personScreenGroups.querySelectorAll(".person-group-row").forEach((btn) => {
+    btn.addEventListener("click", () => openGroupScreen(btn.dataset.groupId));
+  });
+}
+
 function openPersonScreen(name) {
   personScreenTitle.textContent = name;
   personScreenTitle.dataset.name = name;
@@ -1405,6 +1753,8 @@ function openPersonScreen(name) {
       });
     });
   }
+
+  renderPersonGroupBreakdown(name);
 
   const sharedExpenses = getExpenses().filter((e) => e.isGroup && expenseInvolves(e, name));
   personScreenExpenses.innerHTML = sharedExpenses.map(personExpenseRowHtml).join("");
@@ -1497,11 +1847,25 @@ function copyAmount(amount) {
     .catch(() => {});
 }
 
-function handleAddFriend() {
-  const name = addFriendInput.value.trim();
-  if (!name || name === "me") return;
+function handleAddEntity() {
+  const name = addEntityInput.value.trim();
+  if (!name) return;
+  const type = entityTypeToggle.querySelector(".entry-type-btn.selected")?.dataset.type;
+
+  if (type === "group") {
+    const group = addGroup(name);
+    addEntityInput.value = "";
+    renderFriendsTab();
+    if (group) {
+      openGroupScreen(group.id);
+      copyInviteLink(group.id, group.name, "קישור לקבוצה הועתק");
+    }
+    return;
+  }
+
+  if (name === "me") return;
   addFriend(name, addFriendGroupSelect.value || null);
-  addFriendInput.value = "";
+  addEntityInput.value = "";
   renderFriendsTab();
 }
 
@@ -1833,7 +2197,7 @@ amountInput.addEventListener("keydown", (e) => {
 amountContinue.addEventListener("click", handleAmountContinue);
 amountHomeBtn.addEventListener("click", () => {
   render();
-  showScreen("home");
+  exitAddFlow();
 });
 
 categoryBackBtn.addEventListener("click", () => {
@@ -1846,11 +2210,13 @@ categoryBackBtn.addEventListener("click", () => {
   showScreen("amount");
 });
 categoryCloseBtn.addEventListener("click", () => {
+  const wasEditing = editingExpenseId !== null;
   editingExpenseId = null;
-  showScreen("home");
+  if (wasEditing) showScreen("home");
+  else exitAddFlow();
 });
 detailsBackBtn.addEventListener("click", () => showScreen("category"));
-detailsCloseBtn.addEventListener("click", () => showScreen("home"));
+detailsCloseBtn.addEventListener("click", () => exitAddFlow());
 detailsDone.addEventListener("click", handleDetailsDone);
 
 expenseBackBtn.addEventListener("click", () => showScreen(previousScreen));
@@ -1892,33 +2258,38 @@ filterTitle.addEventListener("click", () => {
 });
 
 homeAddBtn.addEventListener("click", startNewExpense);
+groupAddBtn.addEventListener("click", () => {
+  if (currentGroupId) startNewExpenseForGroup(currentGroupId);
+});
 refreshBtn.addEventListener("click", handleRefresh);
 document.querySelector(".tabs").addEventListener("click", handleTabClick);
 attachTabSwipe(document.getElementById("screen-home"));
 monthStatBtn.addEventListener("click", () => openMonthCountryPicker("month"));
 countryStatBtn.addEventListener("click", () => openMonthCountryPicker("country"));
-rangeFrom.addEventListener("change", renderRange);
-rangeTo.addEventListener("change", renderRange);
+rangeFromDisplay.addEventListener("click", () => {
+  openCalendarPicker(rangeFromValue, (dateStr) => {
+    rangeFromValue = dateStr;
+    renderRange();
+  });
+});
+rangeToDisplay.addEventListener("click", () => {
+  openCalendarPicker(rangeToValue, (dateStr) => {
+    rangeToValue = dateStr;
+    renderRange();
+  });
+});
 exportCsvBtn.addEventListener("click", openExportPicker);
 
-addFriendBtn.addEventListener("click", handleAddFriend);
-addFriendInput.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") handleAddFriend();
+addEntityBtn.addEventListener("click", handleAddEntity);
+addEntityInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") handleAddEntity();
 });
-addGroupBtn.addEventListener("click", () => {
-  const name = addGroupInput.value.trim();
-  if (!name) return;
-  const group = addGroup(name);
-  addGroupInput.value = "";
-  renderFriendsTab();
-  if (!group) return;
-  // straight into the new group's screen — its own "add existing people" chips
-  // double as the "who do you want to add?" prompt, plus the invite link for anyone new
-  openGroupScreen(group.id);
-  copyInviteLink(group.id, group.name, "קישור לקבוצה הועתק");
-});
-addGroupInput.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") addGroupBtn.click();
+entityTypeToggle.addEventListener("click", (e) => {
+  const btn = e.target.closest(".entry-type-btn");
+  if (!btn) return;
+  entityTypeToggle.querySelectorAll(".entry-type-btn").forEach((b) => b.classList.toggle("selected", b === btn));
+  addFriendGroupSelect.hidden = btn.dataset.type !== "friend";
+  addEntityInput.placeholder = btn.dataset.type === "group" ? "שם קבוצה חדשה…" : "שם המטייל…";
 });
 
 document.querySelectorAll(".summary-block-toggle").forEach((btn) => {
@@ -1960,28 +2331,36 @@ appTitleInput.addEventListener("blur", () => {
   appTitleBtn.hidden = false;
 });
 
-paceDatesToggle.addEventListener("click", () => {
-  const trip = loadTripDates();
-  tripStartInput.value = trip?.start ?? "";
-  tripEndInput.value = trip?.end ?? "";
-  paceDatesForm.hidden = !paceDatesForm.hidden;
-});
-paceDatesSave.addEventListener("click", () => {
-  if (!tripStartInput.value || !tripEndInput.value) return;
-  saveTripDates({ start: tripStartInput.value, end: tripEndInput.value });
-  paceDatesForm.hidden = true;
+function trySaveTripDates() {
+  tripStartDisplay.textContent = tripStartValue ? formatShortDate(tripStartValue) : "התחלה";
+  tripEndDisplay.textContent = tripEndValue ? formatShortDate(tripEndValue) : "סיום";
+  if (!tripStartValue || !tripEndValue) return;
+  saveTripDates({ start: tripStartValue, end: tripEndValue });
   renderPace();
+}
+tripStartDisplay.addEventListener("click", () => {
+  openCalendarPicker(tripStartValue, (dateStr) => {
+    tripStartValue = dateStr;
+    trySaveTripDates();
+  });
+});
+tripEndDisplay.addEventListener("click", () => {
+  openCalendarPicker(tripEndValue, (dateStr) => {
+    tripEndValue = dateStr;
+    trySaveTripDates();
+  });
 });
 
-paceBudgetToggle.addEventListener("click", () => {
-  tripBudgetInput.value = loadTripBudget() ?? "";
-  paceBudgetForm.hidden = !paceBudgetForm.hidden;
+tripBudgetInput.addEventListener("input", () => {
+  const cursorFromEnd = tripBudgetInput.value.length - tripBudgetInput.selectionStart;
+  tripBudgetInput.value = formatThousands(tripBudgetInput.value);
+  const pos = Math.max(0, tripBudgetInput.value.length - cursorFromEnd);
+  tripBudgetInput.setSelectionRange(pos, pos);
 });
-paceBudgetSave.addEventListener("click", () => {
-  const amount = Number(tripBudgetInput.value);
+tripBudgetInput.addEventListener("change", () => {
+  const amount = parseThousands(tripBudgetInput.value);
   if (!(amount > 0)) return;
   saveTripBudget(amount);
-  paceBudgetForm.hidden = true;
   renderPace();
 });
 
@@ -2006,6 +2385,9 @@ currencySearch.addEventListener("keydown", (e) => {
   }
 });
 currencyListEl.addEventListener("click", async (e) => {
+  // calendar cells wire their own click listeners directly in renderCalendarSheet()
+  if (sheetMode === "calendar") return;
+
   if (sheetMode === "display-currency") {
     const row = e.target.closest(".currency-row");
     if (!row) return;

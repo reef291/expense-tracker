@@ -68,6 +68,11 @@
 
         <input type="text" id="note-input" class="clean-input" placeholder="פירוט (אופציונלי)" autocomplete="off" />
 
+        <div class="split-block" id="expense-group-block">
+          <span class="split-label">קבוצה</span>
+          <div class="chips-row" id="expense-group-chips"></div>
+        </div>
+
         <div class="group-row">
           <label class="checkbox-label">
             <input type="checkbox" id="is-group" />
@@ -154,6 +159,16 @@
           <p id="group-screen-empty" class="empty-state" hidden></p>
         </div>
 
+        <div class="summary-block">
+          <h3>מאזן חברי הקבוצה</h3>
+          <div id="group-screen-balances"></div>
+        </div>
+
+        <div class="summary-block" id="group-screen-expenses-block" hidden>
+          <h3>הוצאות הקבוצה</h3>
+          <div id="group-screen-expenses"></div>
+        </div>
+
         <div class="summary-block" id="group-screen-activity-block" hidden>
           <h3>פעילות</h3>
           <div id="group-screen-activity"></div>
@@ -181,6 +196,11 @@
           </div>
         </div>
         <div id="person-screen-settle-wrap"></div>
+
+        <div class="summary-block" id="person-screen-groups-block" hidden>
+          <h3>לפי קבוצה</h3>
+          <div id="person-screen-groups"></div>
+        </div>
 
         <div class="summary-block">
           <h3>הוצאות משותפות</h3>
@@ -243,15 +263,9 @@
         <div class="summary-block">
           <h3>טווח תאריכים מותאם</h3>
           <div class="range-picker">
-            <div class="date-field-wrap">
-              <span class="date-field-display" id="range-from-display">מתאריך</span>
-              <input type="date" id="range-from" lang="en-GB" />
-            </div>
+            <button type="button" class="date-field-display" id="range-from-display">מתאריך</button>
             <span>עד</span>
-            <div class="date-field-wrap">
-              <span class="date-field-display" id="range-to-display">עד תאריך</span>
-              <input type="date" id="range-to" lang="en-GB" />
-            </div>
+            <button type="button" class="date-field-display" id="range-to-display">עד תאריך</button>
           </div>
           <p class="stat-value" id="range-result"></p>
         </div>
@@ -260,7 +274,6 @@
 
         <div class="pace-card" id="pace-card">
           <div class="pace-header">
-            <span class="pace-emoji">💸</span>
             <div class="pace-header-text">
               <span class="pace-label">הוצאות בטיול</span>
               <span class="pace-total" id="pace-total">0 ₪</span>
@@ -270,21 +283,17 @@
           <div class="pace-stats" id="pace-stats"></div>
           <p class="pace-budget-line" id="pace-budget-line" hidden></p>
 
-          <button type="button" class="pace-dates-toggle" id="pace-dates-toggle">📅 הגדרת תאריכי טיול</button>
-
-          <div class="pace-dates-form" id="pace-dates-form" hidden>
+          <div class="pace-dates-form">
+            <span class="pace-field-label">תאריכי טיול</span>
             <div class="pace-dates-row">
-              <label>התחלה <input type="date" id="trip-start-input" lang="he" /></label>
-              <label>סיום <input type="date" id="trip-end-input" lang="he" /></label>
+              <button type="button" class="date-field-display" id="trip-start-display">התחלה</button>
+              <button type="button" class="date-field-display" id="trip-end-display">סיום</button>
             </div>
-            <button type="button" class="primary-btn pace-dates-save" id="pace-dates-save">שמירה</button>
           </div>
 
-          <button type="button" class="pace-dates-toggle" id="pace-budget-toggle">💰 הגדרת תקציב טיול</button>
-
-          <div class="pace-dates-form" id="pace-budget-form" hidden>
-            <input type="number" inputmode="decimal" id="trip-budget-input" class="clean-input" placeholder="תקציב כולל לטיול (₪)" />
-            <button type="button" class="primary-btn pace-dates-save" id="pace-budget-save">שמירה</button>
+          <div class="pace-dates-form">
+            <span class="pace-field-label">תקציב טיול</span>
+            <input type="text" inputmode="decimal" id="trip-budget-input" class="clean-input" placeholder="תקציב כולל לטיול (₪)" />
           </div>
         </div>
       </section>
@@ -302,6 +311,19 @@
         </div>
 
         <div class="summary-block">
+          <h3>הוספה</h3>
+          <div class="add-entity-row">
+            <input type="text" id="add-entity-input" class="clean-input" placeholder="שם…" autocomplete="off" />
+            <div class="entry-type-toggle" id="entity-type-toggle">
+              <button type="button" class="entry-type-btn selected" data-type="friend">מטייל</button>
+              <button type="button" class="entry-type-btn" data-type="group">קבוצה</button>
+            </div>
+          </div>
+          <select id="add-friend-group-select" class="group-select"></select>
+          <button type="button" class="add-friend-btn add-friend-btn-wide" id="add-entity-btn">הוספה</button>
+        </div>
+
+        <div class="summary-block">
           <button type="button" class="summary-block-toggle" id="groups-toggle" aria-expanded="true">
             <h3>קבוצות <span class="summary-block-count" id="groups-count"></span></h3>
             <span class="summary-block-chevron">▾</span>
@@ -309,10 +331,6 @@
           <div class="summary-block-body" id="groups-body">
             <div class="summary-block-body-inner">
               <div class="groups-list" id="groups-list"></div>
-              <div class="add-friend-row">
-                <input type="text" id="add-group-input" class="clean-input" placeholder="שם קבוצה חדשה…" autocomplete="off" />
-                <button type="button" class="add-friend-btn" id="add-group-btn">הוספה</button>
-              </div>
             </div>
           </div>
         </div>
@@ -326,11 +344,6 @@
             <div class="summary-block-body-inner">
               <div id="friends-list"></div>
               <p id="friends-empty" class="empty-state" hidden>עדיין לא הוספת מטיילים</p>
-              <div class="add-friend-row">
-                <input type="text" id="add-friend-input" class="clean-input" placeholder="שם המטייל…" autocomplete="off" />
-                <select id="add-friend-group-select" class="group-select"></select>
-              </div>
-              <button type="button" class="add-friend-btn add-friend-btn-wide" id="add-friend-btn">הוספה</button>
             </div>
           </div>
         </div>
@@ -338,6 +351,7 @@
     </section>
 
     <button type="button" class="fab-add" id="home-add-btn" aria-label="הוסף הוצאה">+</button>
+    <button type="button" class="fab-add" id="group-add-btn" aria-label="הוסף הוצאה לקבוצה">+</button>
 
     <div class="toast" id="toast"></div>
 
