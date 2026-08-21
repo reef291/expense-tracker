@@ -44,20 +44,6 @@ export function saveGroups(groups) {
   localStorage.setItem(GROUPS_KEY, JSON.stringify(groups));
 }
 
-const LAST_SPLIT_KEY = "trip-last-split";
-
-export function loadLastSplit() {
-  try {
-    return JSON.parse(localStorage.getItem(LAST_SPLIT_KEY)) ?? { paidBy: "me", participants: ["me"] };
-  } catch {
-    return { paidBy: "me", participants: ["me"] };
-  }
-}
-
-export function saveLastSplit(split) {
-  localStorage.setItem(LAST_SPLIT_KEY, JSON.stringify(split));
-}
-
 const SETTLEMENTS_KEY = "trip-settlements";
 
 export function loadSettlements() {

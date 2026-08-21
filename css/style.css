@@ -129,11 +129,11 @@ button {
 }
 
 /* a solid-color emoji (✏️) can't be recolored, so an icon meant to stay quiet
-   and out of the way — like "edit" — uses a plain monochrome svg instead */
+   and out of the way — like "edit" — uses a plain monochrome svg instead.
+   it still keeps the same card background + shadow as every other icon-btn
+   (dropping those made it disappear entirely instead of just reading calmer) */
 .icon-btn-muted {
   color: var(--text-muted);
-  box-shadow: none;
-  background: none;
 }
 
 /* ---------- Amount screen ---------- */

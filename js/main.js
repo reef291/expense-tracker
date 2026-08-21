@@ -31,7 +31,6 @@ import {
   loadGroupName,
   loadGroups,
   loadLastContext,
-  loadLastSplit,
   loadSettlements,
   loadTripBudget,
   loadTripDates,
@@ -40,7 +39,6 @@ import {
   saveGroupName,
   saveGroups,
   saveLastContext,
-  saveLastSplit,
   saveSettlements,
   saveTripBudget,
   saveTripDates,
@@ -847,7 +845,6 @@ function selectExpenseGroup(groupId) {
 isGroupInput.addEventListener("change", () => {
   splitField.hidden = !isGroupInput.checked;
   if (!isGroupInput.checked) return;
-  const last = loadLastSplit();
   const groupId = pendingGroupId || draft.groupId || "";
   pendingGroupId = null;
   draft.groupId = groupId;
@@ -862,10 +859,10 @@ isGroupInput.addEventListener("change", () => {
   } else if (groupId) {
     setSplitParticipantsForGroup(groupId);
   } else {
-    // who paid defaults to "me" every time — only the participant list is worth
-    // remembering from last time, paying is the less common case and shouldn't stick.
+    // both default to "me" every time a fresh group-purchase is started
+    // without a group picked — no remembering the previous split's people.
     draft.paidBy = "me";
-    draft.participants = last.participants?.length ? last.participants : ["me"];
+    draft.participants = ["me"];
     draft.customAmounts = {};
     draft.customPercents = {};
   }
@@ -893,7 +890,6 @@ detailsPhotoInput.addEventListener("change", async () => {
 
 async function handleDetailsDone() {
   const isGroup = isGroupInput.checked;
-  if (isGroup) saveLastSplit({ paidBy: draft.paidBy, participants: draft.participants });
 
   const amountILS = round2(draft.amountLocal * draft.rate);
   const participants = isGroup
@@ -2203,10 +2199,8 @@ expenseDetailBody.addEventListener("change", (e) => {
     const patch = { isGroup };
     const current = getExpenseById(id);
     if (isGroup && !current.participants?.length) {
-      const last = loadLastSplit();
-      const names = last.participants?.length ? last.participants : ["me"];
-      patch.paidBy = last.paidBy || "me";
-      patch.participants = resolveParticipants(names, "equal", current.amountILS);
+      patch.paidBy = "me";
+      patch.participants = resolveParticipants(["me"], "equal", current.amountILS);
     }
     updateExpense(id, patch);
     render();
