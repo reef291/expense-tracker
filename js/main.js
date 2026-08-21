@@ -1657,36 +1657,28 @@ function dateBadgeHtml(dateStr) {
   return `<span class="date-badge"><span class="date-badge-month">${MONTH_NAMES_EN[month - 1]}</span><span class="date-badge-day">${day}</span></span>`;
 }
 
-// the amount+color shown here is this specific expense's contribution to my
-// direct pairwise balance with `name` — my own overall share (myShare) is the
-// wrong number to show on someone else's shared-expenses list, since it never
-// changes no matter whose screen you're looking at. a third party paying (both
-// of us just participants) contributes nothing to our direct balance, so it's
-// shown neutral rather than red/blue.
+// the amount+color+sign shown here is this specific expense's contribution to
+// my direct pairwise balance with `name` — my own overall share (myShare) is
+// the wrong number to show on someone else's shared-expenses list, since it
+// never changes no matter whose screen you're looking at. the caller
+// (personActivityRows) only ever passes expenses paid by me or by `name` —
+// one a third party paid doesn't move our direct balance at all, so it's
+// filtered out before it gets here rather than shown as an unexplained row.
+// the +/- prefix matters: without it a manual sum of every row's amount looks
+// like it should equal the balance above, when really the red rows need to be
+// subtracted, not added.
 function personExpenseRowHtml(e, name) {
   const cat = getCategory(e.category);
   const payer = e.paidBy || "me";
-  let amount = myShare(e);
-  let cls = "";
-  let payerNote = "";
-  if (payer === "me") {
-    amount = shareOf(e, name);
-    cls = "balance-positive";
-  } else if (payer === name) {
-    amount = shareOf(e, "me");
-    cls = "balance-negative";
-  } else {
-    // a third person paid — this row doesn't move the balance between me and
-    // `name` at all (we're both just participants), so it's shown neutral;
-    // naming the actual payer here is what makes that neutral color make sense
-    // instead of looking like an unexplained gap in the list.
-    payerNote = ` · שילם/ה ${personLabel(payer)}`;
-  }
+  const isPositive = payer === "me";
+  const amount = isPositive ? shareOf(e, name) : shareOf(e, "me");
+  const cls = isPositive ? "balance-positive" : "balance-negative";
+  const sign = isPositive ? "+" : "-";
   return `
         <div class="activity-row">
           ${dateBadgeHtml(e.date)}
-          <span class="who">${cat.icon} ${e.note || cat.label}${payerNote}</span>
-          <span class="activity-meta ${cls}">${formatILS(amount)}</span>
+          <span class="who">${cat.icon} ${e.note || cat.label}</span>
+          <span class="activity-meta ${cls}">${sign}${formatILS(amount)}</span>
         </div>`;
 }
 
@@ -1695,7 +1687,7 @@ function groupExpenseRowHtml(e) {
   return `
         <button type="button" class="activity-row group-expense-row" data-id="${e.id}">
           ${dateBadgeHtml(e.date)}
-          <span class="who">${cat.icon} ${e.note || cat.label} · שילם/ה ${personLabel(e.paidBy || "me")}</span>
+          <span class="who">${cat.icon} ${e.note || cat.label} <span class="payer-note">· ${personLabel(e.paidBy || "me")} שילם/ה</span></span>
           <span class="activity-meta">${formatILS(e.amountILS)}</span>
         </button>`;
 }
@@ -1725,7 +1717,7 @@ function personActivityRows(name) {
     .filter((s) => (s.from === "me" && s.to === name) || (s.from === name && s.to === "me"))
     .map((s) => ({
       date: s.date,
-      html: `<div class="activity-row"><span class="who">✓ ${settlementLine(s)}</span><span class="activity-meta">${formatILS(
+      html: `<div class="activity-row"><span class="activity-check">✓</span><span class="who">${settlementLine(s)}</span><span class="activity-meta">${formatILS(
         s.amount
       )} · ${formatActivityDate(s.date)}</span></div>`,
     }));

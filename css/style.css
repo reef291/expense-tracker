@@ -1651,6 +1651,22 @@ input[type="number"] {
   line-height: 1.1;
 }
 
+/* same width as .date-badge so a settlement row's ✓ lines up with the date
+   badges on the expense rows around it, instead of sitting further out */
+.activity-check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  flex-shrink: 0;
+}
+
+.payer-note {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
 .date-badge-month {
   font-size: 0.6rem;
   font-weight: 700;
