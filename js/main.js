@@ -115,6 +115,9 @@ const appTitleInput = document.getElementById("app-title-input");
 const groupsListEl = document.getElementById("groups-list");
 const groupsCountEl = document.getElementById("groups-count");
 const friendsCountEl = document.getElementById("friends-count");
+const allDebtsList = document.getElementById("all-debts-list");
+const allDebtsEmpty = document.getElementById("all-debts-empty");
+const allDebtsCount = document.getElementById("all-debts-count");
 const groupScreenBackBtn = document.getElementById("group-screen-back-btn");
 const groupScreenTitle = document.getElementById("group-screen-title");
 const groupScreenTitleInput = document.getElementById("group-screen-title-input");
@@ -1386,31 +1389,52 @@ function shareOf(e, person) {
   return participants.includes(person) ? e.amountILS / participants.length : 0;
 }
 
-// my real running tab with one specific person, built directly from the actual
-// expenses/settlements the two of us were party to — deliberately NOT the
+// the real running tab between two specific people, built directly from the
+// actual expenses/settlements they were both party to — deliberately NOT the
 // whole-trip minimal-transfer graph (simplifyDebts), which nets debts through
 // third parties to minimize payments and can make a genuine 1-on-1 balance
 // read as zero even though real money is owed between exactly these two people.
-function pairwiseBalance(name, expenses, settlements) {
-  let net = 0; // positive = they owe me
+function pairwiseBalanceBetween(a, b, expenses, settlements) {
+  let net = 0; // positive = b owes a
   for (const e of expenses) {
     const payer = e.paidBy || "me";
-    if (payer === "me") net += shareOf(e, name);
-    else if (payer === name) net -= shareOf(e, "me");
+    if (payer === a) net += shareOf(e, b);
+    else if (payer === b) net -= shareOf(e, a);
   }
   for (const s of settlements) {
-    if (s.from === "me" && s.to === name) net += s.amount;
-    if (s.from === name && s.to === "me") net -= s.amount;
+    if (s.from === a && s.to === b) net += s.amount;
+    if (s.from === b && s.to === a) net -= s.amount;
   }
   return round2(net);
 }
 
 function getMyBalanceWith(name) {
-  return pairwiseBalance(
+  return pairwiseBalanceBetween(
+    "me",
     name,
     getExpenses().filter((e) => e.isGroup && e.participants?.length),
     loadSettlements()
   );
+}
+
+// the complete real picture across the whole trip: every non-zero direct debt
+// between any two people (not just ones involving me), raw pairwise like
+// getMyBalanceWith — not the minimal-transfer plan, which is a deliberately
+// different, opt-in view (see the group's own "קיזוז חכם").
+function getAllPairwiseDebts() {
+  const names = ["me", ...loadFriends().map((f) => f.name)];
+  const expenses = getExpenses().filter((e) => e.isGroup && e.participants?.length);
+  const settlements = loadSettlements();
+  const debts = [];
+  for (let i = 0; i < names.length; i++) {
+    for (let j = i + 1; j < names.length; j++) {
+      const amount = pairwiseBalanceBetween(names[i], names[j], expenses, settlements);
+      if (Math.abs(amount) > 0.01) {
+        debts.push(amount > 0 ? { from: names[j], to: names[i], amount } : { from: names[i], to: names[j], amount: -amount });
+      }
+    }
+  }
+  return debts;
 }
 
 // same as getMyBalanceWith, but restricted to one group's closed sub-ledger —
@@ -1420,7 +1444,7 @@ function getMyBalanceWithInGroup(name, groupId) {
   if (!memberNames.has(name)) return 0;
   const allowed = new Set(["me", ...memberNames]);
   const settlements = loadSettlements().filter((s) => allowed.has(s.from) && allowed.has(s.to));
-  return pairwiseBalance(name, getGroupExpenses(memberNames), settlements);
+  return pairwiseBalanceBetween("me", name, getGroupExpenses(memberNames), settlements);
 }
 
 function describeBalanceWith(name) {
@@ -1837,10 +1861,18 @@ function renderSettleSummary() {
   settleOwedTotal.textContent = formatILS(round2(owedTotal));
 }
 
+function renderAllDebts() {
+  const debts = getAllPairwiseDebts();
+  allDebtsCount.textContent = debts.length ? `· ${debts.length}` : "";
+  allDebtsEmpty.hidden = debts.length > 0;
+  renderTransferRows(allDebtsList, debts, renderFriendsTab);
+}
+
 function renderFriendsTab() {
   renderAppTitle();
   renderGroupsList();
   renderSettleSummary();
+  renderAllDebts();
 
   const friends = loadFriends();
   friendsCountEl.textContent = friends.length ? `· ${friends.length}` : "";

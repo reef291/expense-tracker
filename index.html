@@ -315,6 +315,19 @@
         </div>
 
         <div class="summary-block">
+          <button type="button" class="summary-block-toggle" id="all-debts-toggle" aria-expanded="true">
+            <h3>תמונת מצב מלאה <span class="summary-block-count" id="all-debts-count"></span></h3>
+            <span class="summary-block-chevron">▾</span>
+          </button>
+          <div class="summary-block-body" id="all-debts-body">
+            <div class="summary-block-body-inner">
+              <div id="all-debts-list"></div>
+              <p id="all-debts-empty" class="empty-state" hidden>אין חובות פתוחים בטיול 🎉</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="summary-block">
           <h3>הוספה</h3>
           <div class="add-entity-row">
             <input type="text" id="add-entity-input" class="clean-input" placeholder="שם…" autocomplete="off" />
