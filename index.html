@@ -115,7 +115,7 @@
       <div class="screen-top">
         <button type="button" class="icon-btn" id="expense-back-btn" aria-label="חזור">‹</button>
         <h2>פרטי ההוצאה</h2>
-        <span class="screen-top-spacer"></span>
+        <button type="button" class="icon-btn" id="expense-edit-btn" aria-label="עריכה">✏️</button>
       </div>
       <div class="expense-detail-body" id="expense-detail-body"></div>
       <input type="file" accept="image/*" id="expense-photo-input" hidden />
@@ -141,7 +141,8 @@
     <section class="screen" id="screen-group">
       <div class="screen-top">
         <button type="button" class="icon-btn" id="group-screen-back-btn" aria-label="חזור">‹</button>
-        <h2 id="group-screen-title">—</h2>
+        <button type="button" class="person-screen-title-btn" id="group-screen-title">—</button>
+        <input type="text" class="person-screen-title-btn person-screen-title-input" id="group-screen-title-input" hidden />
         <span class="screen-top-spacer"></span>
       </div>
       <div class="tab-panel">

@@ -681,6 +681,13 @@ input[type="number"] {
   text-align: inherit;
 }
 
+.detail-amount-display {
+  font-size: 2.2rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
 .detail-amount-input {
   border: none;
   background: transparent;

@@ -83,6 +83,7 @@ const detailsAddPhotoBtn = document.getElementById("details-add-photo-btn");
 const detailsPhotoPreview = document.getElementById("details-photo-preview");
 
 const expenseBackBtn = document.getElementById("expense-back-btn");
+const expenseEditBtn = document.getElementById("expense-edit-btn");
 const expenseDetailBody = document.getElementById("expense-detail-body");
 const expensePhotoInput = document.getElementById("expense-photo-input");
 const photoLightbox = document.getElementById("photo-lightbox");
@@ -118,6 +119,7 @@ const groupsCountEl = document.getElementById("groups-count");
 const friendsCountEl = document.getElementById("friends-count");
 const groupScreenBackBtn = document.getElementById("group-screen-back-btn");
 const groupScreenTitle = document.getElementById("group-screen-title");
+const groupScreenTitleInput = document.getElementById("group-screen-title-input");
 const groupScreenMembers = document.getElementById("group-screen-members");
 const groupScreenBalances = document.getElementById("group-screen-balances");
 const groupScreenEmpty = document.getElementById("group-screen-empty");
@@ -593,7 +595,7 @@ function initCategoryGrid() {
       editingExpenseId = null;
       updateExpense(id, { category: btn.dataset.id });
       render();
-      openExpenseDetail(id, previousScreen);
+      openExpenseDetail(id, previousScreen, true);
       return;
     }
 
@@ -1285,6 +1287,14 @@ function addGroup(name) {
   return group;
 }
 
+function renameGroup(id, newName) {
+  const trimmed = newName.trim();
+  if (!trimmed || loadGroups().some((g) => g.id !== id && g.name === trimmed)) return false;
+  saveGroups(loadGroups().map((g) => (g.id === id ? { ...g, name: trimmed } : g)));
+  renderFriendsTab();
+  return true;
+}
+
 function removeGroup(id) {
   saveGroups(loadGroups().filter((g) => g.id !== id));
   // members of a removed group become individuals again, not deleted
@@ -1658,17 +1668,24 @@ function personExpenseRowHtml(e, name) {
   const payer = e.paidBy || "me";
   let amount = myShare(e);
   let cls = "";
+  let payerNote = "";
   if (payer === "me") {
     amount = shareOf(e, name);
     cls = "balance-positive";
   } else if (payer === name) {
     amount = shareOf(e, "me");
     cls = "balance-negative";
+  } else {
+    // a third person paid — this row doesn't move the balance between me and
+    // `name` at all (we're both just participants), so it's shown neutral;
+    // naming the actual payer here is what makes that neutral color make sense
+    // instead of looking like an unexplained gap in the list.
+    payerNote = ` · שילם/ה ${personLabel(payer)}`;
   }
   return `
         <div class="activity-row">
           ${dateBadgeHtml(e.date)}
-          <span class="who">${cat.icon} ${e.note || cat.label}</span>
+          <span class="who">${cat.icon} ${e.note || cat.label}${payerNote}</span>
           <span class="activity-meta ${cls}">${formatILS(amount)}</span>
         </div>`;
 }
@@ -1983,16 +2000,49 @@ async function handleRefresh() {
 
 // ---------- expense detail screen ----------
 
-function openExpenseDetail(id, cameFrom) {
-  const e = getExpenseById(id);
-  if (!e) return;
-  currentExpenseId = id;
-  previousScreen = cameFrom;
+let detailEditMode = false;
 
-  const cat = getCategory(e.category);
-  const country = getCountry(e.country);
+function renderExpenseViewBody(e, cat, country) {
+  const participantNames = (e.participants ?? []).map((p) => (typeof p === "object" ? p.name : p));
+  return `
+    <div class="detail-hero">
+      <span class="detail-icon">${cat.icon}</span>
+      <div class="detail-amount-row">
+        <span class="detail-amount-display">${formatNumber(round2(e.amountILS))}</span>
+        <span class="detail-amount-symbol">₪</span>
+      </div>
+      <span class="detail-currency-chip">${formatNumber(e.amountLocal)} ${getCurrency(e.currencyLocal).symbol} ${e.currencyLocal}</span>
+    </div>
 
-  expenseDetailBody.innerHTML = `
+    <div class="detail-rows">
+      <div class="detail-row"><span>תאריך</span><span>${formatDay(e.date)}</span></div>
+      <div class="detail-row"><span>מדינה</span><span>${country.flag} ${country.name}</span></div>
+      <div class="detail-row"><span>קטגוריה</span><span>${cat.icon} ${cat.label}</span></div>
+      <div class="detail-row"><span>מיקום</span><span>${e.location || "—"}</span></div>
+      <div class="detail-row"><span>פירוט</span><span>${e.note || "—"}</span></div>
+      <div class="detail-row"><span>קניה קבוצתית</span><span>${e.isGroup ? "כן" : "לא"}</span></div>
+      <div class="detail-row"><span>נכלל בסה"כ</span><span>${e.excludeFromTotal ? "לא" : "כן"}</span></div>
+    </div>
+
+    ${e.isGroup
+      ? `<div class="split-field">
+          <div class="split-block">
+            <span class="split-label">מי שילם?</span>
+            <span class="who">${personLabel(e.paidBy || "me")}</span>
+          </div>
+          <div class="split-block">
+            <span class="split-label">מי משתתף?</span>
+            <span class="who">${participantNames.map(personLabel).join(", ")}</span>
+          </div>
+        </div>`
+      : ""}
+
+    ${e.photo ? `<img class="detail-photo" id="expense-photo-preview" src="${e.photo}" alt="תמונה מצורפת" />` : ""}
+  `;
+}
+
+function renderExpenseEditBody(e, cat, country) {
+  return `
     <div class="detail-hero">
       <span class="detail-icon">${cat.icon}</span>
       <div class="detail-amount-row">
@@ -2054,25 +2104,46 @@ function openExpenseDetail(id, cameFrom) {
 
     <button type="button" class="destructive-btn" id="expense-delete-btn">מחק הוצאה</button>
   `;
+}
 
-  const amountInputEl = document.getElementById("detail-amount-input");
-  resizeAmountInput(amountInputEl);
-  amountInputEl.addEventListener("input", () => resizeAmountInput(amountInputEl));
+// view mode is the default (read-only, no accidental edits) — editing anything
+// requires tapping the pencil first. keepEditMode is true for every internal
+// re-render triggered from inside an already-open edit session (category pick,
+// country pick, photo change, currency change, split changes); a fresh open
+// from a list row always starts back in view mode.
+function openExpenseDetail(id, cameFrom, keepEditMode = false) {
+  const e = getExpenseById(id);
+  if (!e) return;
+  currentExpenseId = id;
+  previousScreen = cameFrom;
+  if (!keepEditMode) detailEditMode = false;
 
-  if (e.isGroup) {
-    const paidByEl = document.getElementById("detail-paid-by-chips");
-    const participantsEl = document.getElementById("detail-participants-chips");
-    const currentNames = (e.participants ?? []).map((p) => (typeof p === "object" ? p.name : p));
-    renderPaidByChips(paidByEl, e.paidBy || "me", (name) => {
-      updateExpense(id, { paidBy: name });
-      render();
-    });
-    renderParticipantsChips(participantsEl, currentNames, (names) => {
-      // editing the split from the detail screen always resolves to an equal split;
-      // custom amount/percent splits are only set up at creation time
-      updateExpense(id, { participants: resolveParticipants(names, "equal", e.amountILS) });
-      render();
-    });
+  const cat = getCategory(e.category);
+  const country = getCountry(e.country);
+
+  expenseEditBtn.hidden = detailEditMode;
+  expenseDetailBody.innerHTML = detailEditMode ? renderExpenseEditBody(e, cat, country) : renderExpenseViewBody(e, cat, country);
+
+  if (detailEditMode) {
+    const amountInputEl = document.getElementById("detail-amount-input");
+    resizeAmountInput(amountInputEl);
+    amountInputEl.addEventListener("input", () => resizeAmountInput(amountInputEl));
+
+    if (e.isGroup) {
+      const paidByEl = document.getElementById("detail-paid-by-chips");
+      const participantsEl = document.getElementById("detail-participants-chips");
+      const currentNames = (e.participants ?? []).map((p) => (typeof p === "object" ? p.name : p));
+      renderPaidByChips(paidByEl, e.paidBy || "me", (name) => {
+        updateExpense(id, { paidBy: name });
+        render();
+      });
+      renderParticipantsChips(participantsEl, currentNames, (names) => {
+        // editing the split from the detail screen always resolves to an equal split;
+        // custom amount/percent splits are only set up at creation time
+        updateExpense(id, { participants: resolveParticipants(names, "equal", e.amountILS) });
+        render();
+      });
+    }
   }
 
   showScreen("expense");
@@ -2101,7 +2172,7 @@ expenseDetailBody.addEventListener("click", (e) => {
     openCountryEditPicker((code) => {
       updateExpense(id, { country: code });
       render();
-      openExpenseDetail(id, previousScreen);
+      openExpenseDetail(id, previousScreen, true);
     });
   }
   if (e.target.closest("#detail-currency-btn")) {
@@ -2139,7 +2210,7 @@ expenseDetailBody.addEventListener("change", (e) => {
     }
     updateExpense(id, patch);
     render();
-    openExpenseDetail(id, previousScreen);
+    openExpenseDetail(id, previousScreen, true);
     return;
   } else if (e.target.id === "detail-include-toggle") {
     updateExpense(id, { excludeFromTotal: !e.target.checked });
@@ -2155,7 +2226,7 @@ expensePhotoInput.addEventListener("change", async () => {
   const dataUrl = await fileToCompressedDataUrl(file);
   updateExpense(currentExpenseId, { photo: dataUrl });
   expensePhotoInput.value = "";
-  openExpenseDetail(currentExpenseId, previousScreen);
+  openExpenseDetail(currentExpenseId, previousScreen, true);
 });
 
 lightboxClose.addEventListener("click", () => (photoLightbox.hidden = true));
@@ -2223,7 +2294,7 @@ categoryBackBtn.addEventListener("click", () => {
   if (editingExpenseId) {
     const id = editingExpenseId;
     editingExpenseId = null;
-    openExpenseDetail(id, previousScreen);
+    openExpenseDetail(id, previousScreen, true);
     return;
   }
   showScreen("amount");
@@ -2239,11 +2310,38 @@ detailsCloseBtn.addEventListener("click", () => exitAddFlow());
 detailsDone.addEventListener("click", handleDetailsDone);
 
 expenseBackBtn.addEventListener("click", () => showScreen(previousScreen));
+expenseEditBtn.addEventListener("click", () => {
+  detailEditMode = true;
+  openExpenseDetail(currentExpenseId, previousScreen, true);
+});
 filterBackBtn.addEventListener("click", () => {
   currentFilter = null;
   showScreen("home");
 });
 groupScreenBackBtn.addEventListener("click", () => showScreen("home"));
+groupScreenTitle.addEventListener("click", () => {
+  groupScreenTitleInput.value = groupScreenTitle.textContent;
+  groupScreenTitle.hidden = true;
+  groupScreenTitleInput.hidden = false;
+  groupScreenTitleInput.focus();
+  groupScreenTitleInput.select();
+});
+groupScreenTitleInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") groupScreenTitleInput.blur();
+  if (e.key === "Escape") {
+    groupScreenTitleInput.value = groupScreenTitle.textContent;
+    groupScreenTitleInput.blur();
+  }
+});
+groupScreenTitleInput.addEventListener("blur", () => {
+  const newName = groupScreenTitleInput.value.trim();
+  groupScreenTitleInput.hidden = true;
+  groupScreenTitle.hidden = false;
+  if (newName && newName !== groupScreenTitle.textContent && currentGroupId) {
+    renameGroup(currentGroupId, newName);
+    openGroupScreen(currentGroupId);
+  }
+});
 
 personScreenBackBtn.addEventListener("click", () => showScreen("home"));
 personScreenTitle.addEventListener("click", () => {
@@ -2466,7 +2564,7 @@ currencyListEl.addEventListener("click", async (e) => {
     }
     updateExpense(id, { currencyLocal: code, amountILS: round2(exp.amountLocal * rate) });
     render();
-    openExpenseDetail(id, previousScreen);
+    openExpenseDetail(id, previousScreen, true);
     return;
   }
 
