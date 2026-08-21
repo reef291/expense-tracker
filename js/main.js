@@ -115,9 +115,6 @@ const appTitleInput = document.getElementById("app-title-input");
 const groupsListEl = document.getElementById("groups-list");
 const groupsCountEl = document.getElementById("groups-count");
 const friendsCountEl = document.getElementById("friends-count");
-const allDebtsList = document.getElementById("all-debts-list");
-const allDebtsEmpty = document.getElementById("all-debts-empty");
-const allDebtsCount = document.getElementById("all-debts-count");
 const groupScreenBackBtn = document.getElementById("group-screen-back-btn");
 const groupScreenTitle = document.getElementById("group-screen-title");
 const groupScreenTitleInput = document.getElementById("group-screen-title-input");
@@ -128,6 +125,10 @@ const groupSmartSettleBtn = document.getElementById("group-smart-settle-btn");
 const groupSmartSettleBlock = document.getElementById("group-smart-settle-block");
 const groupSmartSettleList = document.getElementById("group-smart-settle-list");
 const groupSmartSettleEmpty = document.getElementById("group-smart-settle-empty");
+const groupAllDebtsBtn = document.getElementById("group-all-debts-btn");
+const groupAllDebtsBlock = document.getElementById("group-all-debts-block");
+const groupAllDebtsList = document.getElementById("group-all-debts-list");
+const groupAllDebtsEmpty = document.getElementById("group-all-debts-empty");
 const groupScreenActivityBlock = document.getElementById("group-screen-activity-block");
 const groupScreenActivity = document.getElementById("group-screen-activity");
 const groupScreenAddExisting = document.getElementById("group-screen-add-existing");
@@ -198,6 +199,7 @@ let currentFilter = null; // { type: 'country'|'month', value }
 let editingExpenseId = null; // set when the category screen is opened to edit an existing expense
 let currentGroupId = null; // the group screen currently being viewed, for the group's own "+" button
 let smartSettleOpen = false; // whether the group's "קיזוז חכם" (full minimal-transfer plan) panel is expanded
+let groupAllDebtsOpen = false; // whether the group's "כל החובות" (raw, unsimplified pairwise debts) panel is expanded
 let pendingGroupParticipants = null; // set by "+ add expense" from a group screen, consumed once when the group-purchase toggle turns on
 let pendingGroupId = null; // the group id paired with pendingGroupParticipants, pre-selects the details-screen group picker
 let addReturnGroupId = null; // set when the add-flow was launched from a group's own "+" button, so finishing/cancelling lands back there instead of home
@@ -1417,14 +1419,11 @@ function getMyBalanceWith(name) {
   );
 }
 
-// the complete real picture across the whole trip: every non-zero direct debt
-// between any two people (not just ones involving me), raw pairwise like
-// getMyBalanceWith — not the minimal-transfer plan, which is a deliberately
-// different, opt-in view (see the group's own "קיזוז חכם").
-function getAllPairwiseDebts() {
-  const names = ["me", ...loadFriends().map((f) => f.name)];
-  const expenses = getExpenses().filter((e) => e.isGroup && e.participants?.length);
-  const settlements = loadSettlements();
+// the complete real picture among a set of people: every non-zero direct debt
+// between any two of them, raw pairwise like getMyBalanceWith — not the
+// minimal-transfer plan, which is a deliberately different, opt-in view (see
+// the group's own "קיזוז חכם").
+function getPairwiseDebtsAmong(names, expenses, settlements) {
   const debts = [];
   for (let i = 0; i < names.length; i++) {
     for (let j = i + 1; j < names.length; j++) {
@@ -1660,6 +1659,14 @@ function openGroupScreen(groupId) {
   renderTransferRows(groupSmartSettleList, allTransfers, () => openGroupScreen(groupId));
 
   const groupExpenses = getGroupExpenses(memberNames);
+
+  const allowedNames = new Set(["me", ...memberNames]);
+  const groupSettlements = loadSettlements().filter((s) => allowedNames.has(s.from) && allowedNames.has(s.to));
+  const groupDebts = getPairwiseDebtsAmong(["me", ...memberNames], groupExpenses, groupSettlements);
+  groupAllDebtsBlock.hidden = !groupAllDebtsOpen;
+  groupAllDebtsEmpty.hidden = groupDebts.length > 0;
+  renderTransferRows(groupAllDebtsList, groupDebts, () => openGroupScreen(groupId));
+
   const activityHtml = groupActivityRows(groupExpenses, memberNames);
   groupScreenActivityBlock.hidden = !activityHtml;
   groupScreenActivity.innerHTML = activityHtml;
@@ -1861,18 +1868,10 @@ function renderSettleSummary() {
   settleOwedTotal.textContent = formatILS(round2(owedTotal));
 }
 
-function renderAllDebts() {
-  const debts = getAllPairwiseDebts();
-  allDebtsCount.textContent = debts.length ? `· ${debts.length}` : "";
-  allDebtsEmpty.hidden = debts.length > 0;
-  renderTransferRows(allDebtsList, debts, renderFriendsTab);
-}
-
 function renderFriendsTab() {
   renderAppTitle();
   renderGroupsList();
   renderSettleSummary();
-  renderAllDebts();
 
   const friends = loadFriends();
   friendsCountEl.textContent = friends.length ? `· ${friends.length}` : "";
@@ -2348,6 +2347,10 @@ groupScreenBackBtn.addEventListener("click", () => showScreen("home"));
 groupSmartSettleBtn.addEventListener("click", () => {
   smartSettleOpen = !smartSettleOpen;
   groupSmartSettleBlock.hidden = !smartSettleOpen;
+});
+groupAllDebtsBtn.addEventListener("click", () => {
+  groupAllDebtsOpen = !groupAllDebtsOpen;
+  groupAllDebtsBlock.hidden = !groupAllDebtsOpen;
 });
 groupScreenTitle.addEventListener("click", () => {
   groupScreenTitleInput.value = groupScreenTitle.textContent;

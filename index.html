@@ -173,6 +173,14 @@
           <p id="group-smart-settle-empty" class="empty-state" hidden>אין חובות פתוחים בקבוצה 🎉</p>
         </div>
 
+        <button type="button" class="smart-settle-btn" id="group-all-debts-btn">📋 כל החובות בקבוצה</button>
+        <div class="summary-block" id="group-all-debts-block" hidden>
+          <h3>כל החובות בקבוצה</h3>
+          <p class="split-label">כל חוב אמיתי בין כל שניים בקבוצה, בלי לנתב דרך אף אחד אחר</p>
+          <div id="group-all-debts-list"></div>
+          <p id="group-all-debts-empty" class="empty-state" hidden>אין חובות פתוחים בקבוצה 🎉</p>
+        </div>
+
         <div class="summary-block">
           <h3>מאזן חברי הקבוצה</h3>
           <div id="group-screen-balances"></div>
@@ -311,19 +319,6 @@
           <div class="settle-summary-item">
             <span class="settle-summary-label">חייבים לך</span>
             <span class="settle-summary-value balance-positive" id="settle-owed-total">0 ₪</span>
-          </div>
-        </div>
-
-        <div class="summary-block">
-          <button type="button" class="summary-block-toggle" id="all-debts-toggle" aria-expanded="true">
-            <h3>תמונת מצב מלאה <span class="summary-block-count" id="all-debts-count"></span></h3>
-            <span class="summary-block-chevron">▾</span>
-          </button>
-          <div class="summary-block-body" id="all-debts-body">
-            <div class="summary-block-body-inner">
-              <div id="all-debts-list"></div>
-              <p id="all-debts-empty" class="empty-state" hidden>אין חובות פתוחים בטיול 🎉</p>
-            </div>
           </div>
         </div>
 
