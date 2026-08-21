@@ -132,10 +132,8 @@ const personScreenTitle = document.getElementById("person-screen-title");
 const personScreenTitleInput = document.getElementById("person-screen-title-input");
 const personScreenBalanceValue = document.getElementById("person-screen-balance-value");
 const personScreenSettleWrap = document.getElementById("person-screen-settle-wrap");
-const personScreenExpenses = document.getElementById("person-screen-expenses");
-const personScreenExpensesEmpty = document.getElementById("person-screen-expenses-empty");
-const personScreenActivityBlock = document.getElementById("person-screen-activity-block");
 const personScreenActivity = document.getElementById("person-screen-activity");
+const personScreenActivityEmpty = document.getElementById("person-screen-activity-empty");
 const personScreenGroupsBlock = document.getElementById("person-screen-groups-block");
 const personScreenGroups = document.getElementById("person-screen-groups");
 const groupPhotoWrap = document.getElementById("group-photo-wrap");
@@ -1701,31 +1699,30 @@ function groupExpensesByMonthHtml(expenses) {
   return html;
 }
 
+// one merged, chronological feed: settlements keep their own plain checkmark
+// style, and every shared expense renders exactly like it used to under
+// "הוצאות משותפות" (date badge, category icon, amount colored by direction) —
+// so nothing needs its own separate "tagged you" line, that's just an expense.
 function personActivityRows(name) {
   const settlementEvents = loadSettlements()
     .filter((s) => (s.from === "me" && s.to === name) || (s.from === name && s.to === "me"))
     .map((s) => ({
       date: s.date,
-      html: `<span class="who">✓ ${settlementLine(s)}</span><span class="activity-meta">${formatILS(s.amount)} · ${formatActivityDate(s.date)}</span>`,
+      html: `<div class="activity-row"><span class="who">✓ ${settlementLine(s)}</span><span class="activity-meta">${formatILS(
+        s.amount
+      )} · ${formatActivityDate(s.date)}</span></div>`,
     }));
 
-  // being tagged in someone else's expense is its own kind of activity, not
-  // just a line item under "shared expenses" — it should read like an event
-  const taggedEvents = getExpenses()
-    .filter((e) => e.isGroup && e.paidBy === name && expenseInvolves(e, name))
-    .map((e) => {
-      const iso = e.createdAt ? new Date(e.createdAt).toISOString() : e.date;
-      return {
-        date: iso,
-        html: `<span class="who">🧾 ${personLabel(name)} שם/ה עליך הוצאה: ${e.note || getCategory(e.category).label}</span><span class="activity-meta">${formatILS(
-          myShare(e)
-        )} · ${formatActivityDate(iso)}</span>`,
-      };
-    });
+  const expenseEvents = getExpenses()
+    .filter((e) => e.isGroup && expenseInvolves(e, name))
+    .map((e) => ({
+      date: e.createdAt ? new Date(e.createdAt).toISOString() : e.date,
+      html: personExpenseRowHtml(e, name),
+    }));
 
-  return [...settlementEvents, ...taggedEvents]
+  return [...settlementEvents, ...expenseEvents]
     .sort((a, b) => (b.date || "").localeCompare(a.date || ""))
-    .map((item) => `<div class="activity-row">${item.html}</div>`)
+    .map((item) => item.html)
     .join("");
 }
 
@@ -1782,13 +1779,9 @@ function openPersonScreen(name) {
 
   renderPersonGroupBreakdown(name);
 
-  const sharedExpenses = getExpenses().filter((e) => e.isGroup && expenseInvolves(e, name));
-  personScreenExpenses.innerHTML = sharedExpenses.map((e) => personExpenseRowHtml(e, name)).join("");
-  personScreenExpensesEmpty.hidden = sharedExpenses.length > 0;
-
   const activityHtml = personActivityRows(name);
-  personScreenActivityBlock.hidden = !activityHtml;
   personScreenActivity.innerHTML = activityHtml;
+  personScreenActivityEmpty.hidden = Boolean(activityHtml);
 
   showScreen("person");
 }
