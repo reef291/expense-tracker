@@ -1,4 +1,4 @@
-const CACHE_NAME = "expense-tracker-v2";
+const CACHE_NAME = "expense-tracker-v3";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -37,15 +37,19 @@ self.addEventListener("activate", (event) => {
 // when there's a connection (a stale HTML+JS combo is worse than no cache at all
 // — mismatched element IDs between an old page and new script throw and can
 // silently break half the app), and only fall back to the cache when actually
-// offline. Cross-origin requests (geo/currency APIs, the ExcelJS CDN script)
-// pass straight through untouched; they already fail gracefully offline on their own.
+// offline. "no-store" is required here, not optional: a plain fetch() still
+// lets the browser's own HTTP cache silently answer from a stale disk copy of
+// main.js/index.html without a network round-trip at all, which defeats the
+// whole point of "network-first" right after a deploy. Cross-origin requests
+// (geo/currency APIs, the ExcelJS CDN script) pass straight through untouched;
+// they already fail gracefully offline on their own.
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
   const url = new URL(event.request.url);
   if (url.origin !== location.origin) return;
 
   event.respondWith(
-    fetch(event.request)
+    fetch(event.request, { cache: "no-store" })
       .then((response) => {
         if (response.ok) caches.open(CACHE_NAME).then((cache) => cache.put(event.request, response.clone()));
         return response;
