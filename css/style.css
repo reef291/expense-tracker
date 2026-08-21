@@ -428,6 +428,14 @@ input[type="number"] {
   color: var(--text-muted);
 }
 
+.debts-list-fade {
+  transition: opacity 0.18s ease;
+}
+
+.debts-list-fade.fading {
+  opacity: 0;
+}
+
 .chips-row {
   display: flex;
   flex-wrap: wrap;
@@ -1867,19 +1875,6 @@ input[type="number"] {
 
 .balance-zero {
   color: var(--text-muted);
-}
-
-.smart-settle-btn {
-  width: 100%;
-  padding: 12px;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: var(--accent-light);
-  color: var(--accent);
-  font-size: 0.88rem;
-  font-weight: 600;
-  cursor: pointer;
-  margin-bottom: 12px;
 }
 
 .export-btn {

@@ -165,20 +165,22 @@
           <p id="group-screen-empty" class="empty-state" hidden></p>
         </div>
 
-        <button type="button" class="smart-settle-btn" id="group-smart-settle-btn">🧮 קיזוז חכם לכל הקבוצה</button>
-        <div class="summary-block" id="group-smart-settle-block" hidden>
-          <h3>קיזוז חכם — מינימום העברות</h3>
-          <p class="split-label">מי צריך להעביר למי כדי שכולם יהיו מסודרים, בכמה שפחות העברות</p>
-          <div id="group-smart-settle-list"></div>
-          <p id="group-smart-settle-empty" class="empty-state" hidden>אין חובות פתוחים בקבוצה 🎉</p>
-        </div>
-
-        <button type="button" class="smart-settle-btn" id="group-all-debts-btn">📋 כל החובות בקבוצה</button>
-        <div class="summary-block" id="group-all-debts-block" hidden>
-          <h3>כל החובות בקבוצה</h3>
-          <p class="split-label">כל חוב אמיתי בין כל שניים בקבוצה, בלי לנתב דרך אף אחד אחר</p>
-          <div id="group-all-debts-list"></div>
-          <p id="group-all-debts-empty" class="empty-state" hidden>אין חובות פתוחים בקבוצה 🎉</p>
+        <div class="summary-block">
+          <button type="button" class="summary-block-toggle" id="group-debts-toggle" aria-expanded="false">
+            <h3>💰 חובות בקבוצה</h3>
+            <span class="summary-block-chevron">▾</span>
+          </button>
+          <div class="summary-block-body collapsed" id="group-debts-body">
+            <div class="summary-block-body-inner">
+              <div class="entry-type-toggle" id="group-debts-mode-toggle">
+                <button type="button" class="entry-type-btn selected" data-mode="all">כל החובות</button>
+                <button type="button" class="entry-type-btn" data-mode="smart">🧮 קיזוז חכם</button>
+              </div>
+              <p class="split-label" id="group-debts-hint">כל חוב אמיתי בין כל שניים בקבוצה, בלי לנתב דרך אף אחד אחר</p>
+              <div id="group-debts-list" class="debts-list-fade"></div>
+              <p id="group-debts-empty" class="empty-state" hidden>אין חובות פתוחים בקבוצה 🎉</p>
+            </div>
+          </div>
         </div>
 
         <div class="summary-block">

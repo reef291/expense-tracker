@@ -121,14 +121,10 @@ const groupScreenTitleInput = document.getElementById("group-screen-title-input"
 const groupScreenMembers = document.getElementById("group-screen-members");
 const groupScreenBalances = document.getElementById("group-screen-balances");
 const groupScreenEmpty = document.getElementById("group-screen-empty");
-const groupSmartSettleBtn = document.getElementById("group-smart-settle-btn");
-const groupSmartSettleBlock = document.getElementById("group-smart-settle-block");
-const groupSmartSettleList = document.getElementById("group-smart-settle-list");
-const groupSmartSettleEmpty = document.getElementById("group-smart-settle-empty");
-const groupAllDebtsBtn = document.getElementById("group-all-debts-btn");
-const groupAllDebtsBlock = document.getElementById("group-all-debts-block");
-const groupAllDebtsList = document.getElementById("group-all-debts-list");
-const groupAllDebtsEmpty = document.getElementById("group-all-debts-empty");
+const groupDebtsModeToggle = document.getElementById("group-debts-mode-toggle");
+const groupDebtsHint = document.getElementById("group-debts-hint");
+const groupDebtsList = document.getElementById("group-debts-list");
+const groupDebtsEmpty = document.getElementById("group-debts-empty");
 const groupScreenActivityBlock = document.getElementById("group-screen-activity-block");
 const groupScreenActivity = document.getElementById("group-screen-activity");
 const groupScreenAddExisting = document.getElementById("group-screen-add-existing");
@@ -198,8 +194,7 @@ let previousScreen = "home";
 let currentFilter = null; // { type: 'country'|'month', value }
 let editingExpenseId = null; // set when the category screen is opened to edit an existing expense
 let currentGroupId = null; // the group screen currently being viewed, for the group's own "+" button
-let smartSettleOpen = false; // whether the group's "קיזוז חכם" (full minimal-transfer plan) panel is expanded
-let groupAllDebtsOpen = false; // whether the group's "כל החובות" (raw, unsimplified pairwise debts) panel is expanded
+let groupDebtsMode = "all"; // "all" = every real pairwise debt, "smart" = minimal-transfer plan
 let pendingGroupParticipants = null; // set by "+ add expense" from a group screen, consumed once when the group-purchase toggle turns on
 let pendingGroupId = null; // the group id paired with pendingGroupParticipants, pre-selects the details-screen group picker
 let addReturnGroupId = null; // set when the add-flow was launched from a group's own "+" button, so finishing/cancelling lands back there instead of home
@@ -1654,18 +1649,18 @@ function openGroupScreen(groupId) {
     .map((name) => groupMemberBalanceRowHtml(name, groupBalances))
     .join("");
 
-  groupSmartSettleBlock.hidden = !smartSettleOpen;
-  groupSmartSettleEmpty.hidden = allTransfers.length > 0;
-  renderTransferRows(groupSmartSettleList, allTransfers, () => openGroupScreen(groupId));
-
   const groupExpenses = getGroupExpenses(memberNames);
-
   const allowedNames = new Set(["me", ...memberNames]);
   const groupSettlements = loadSettlements().filter((s) => allowedNames.has(s.from) && allowedNames.has(s.to));
-  const groupDebts = getPairwiseDebtsAmong(["me", ...memberNames], groupExpenses, groupSettlements);
-  groupAllDebtsBlock.hidden = !groupAllDebtsOpen;
-  groupAllDebtsEmpty.hidden = groupDebts.length > 0;
-  renderTransferRows(groupAllDebtsList, groupDebts, () => openGroupScreen(groupId));
+
+  const groupDebts =
+    groupDebtsMode === "smart" ? allTransfers : getPairwiseDebtsAmong(["me", ...memberNames], groupExpenses, groupSettlements);
+  groupDebtsHint.textContent =
+    groupDebtsMode === "smart"
+      ? "מי צריך להעביר למי כדי שכולם יהיו מסודרים, בכמה שפחות העברות"
+      : "כל חוב אמיתי בין כל שניים בקבוצה, בלי לנתב דרך אף אחד אחר";
+  groupDebtsEmpty.hidden = groupDebts.length > 0;
+  renderTransferRows(groupDebtsList, groupDebts, () => openGroupScreen(groupId));
 
   const activityHtml = groupActivityRows(groupExpenses, memberNames);
   groupScreenActivityBlock.hidden = !activityHtml;
@@ -2344,13 +2339,18 @@ filterBackBtn.addEventListener("click", () => {
   showScreen("home");
 });
 groupScreenBackBtn.addEventListener("click", () => showScreen("home"));
-groupSmartSettleBtn.addEventListener("click", () => {
-  smartSettleOpen = !smartSettleOpen;
-  groupSmartSettleBlock.hidden = !smartSettleOpen;
-});
-groupAllDebtsBtn.addEventListener("click", () => {
-  groupAllDebtsOpen = !groupAllDebtsOpen;
-  groupAllDebtsBlock.hidden = !groupAllDebtsOpen;
+groupDebtsModeToggle.addEventListener("click", (e) => {
+  const btn = e.target.closest(".entry-type-btn");
+  if (!btn || btn.dataset.mode === groupDebtsMode || !currentGroupId) return;
+  groupDebtsMode = btn.dataset.mode;
+  groupDebtsModeToggle.querySelectorAll(".entry-type-btn").forEach((b) => b.classList.toggle("selected", b === btn));
+  // fade the list out, swap its contents while invisible, fade back in — reads
+  // as the full list settling into the minimized one instead of an instant cut
+  groupDebtsList.classList.add("fading");
+  setTimeout(() => {
+    openGroupScreen(currentGroupId);
+    groupDebtsList.classList.remove("fading");
+  }, 180);
 });
 groupScreenTitle.addEventListener("click", () => {
   groupScreenTitleInput.value = groupScreenTitle.textContent;
