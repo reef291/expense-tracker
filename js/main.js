@@ -1695,7 +1695,7 @@ function groupExpenseRowHtml(e) {
   return `
         <button type="button" class="activity-row group-expense-row" data-id="${e.id}">
           ${dateBadgeHtml(e.date)}
-          <span class="who">${cat.icon} ${e.note || cat.label}</span>
+          <span class="who">${cat.icon} ${e.note || cat.label} · שילם/ה ${personLabel(e.paidBy || "me")}</span>
           <span class="activity-meta">${formatILS(e.amountILS)}</span>
         </button>`;
 }
@@ -1730,8 +1730,11 @@ function personActivityRows(name) {
       )} · ${formatActivityDate(s.date)}</span></div>`,
     }));
 
+  // only expenses that actually move the balance between me and `name` belong
+  // here — one paid by a third party (both of us just participants) doesn't
+  // touch our direct debt at all, so it's noise on this specific person's feed.
   const expenseEvents = getExpenses()
-    .filter((e) => e.isGroup && expenseInvolves(e, name))
+    .filter((e) => e.isGroup && expenseInvolves(e, name) && (e.paidBy === "me" || e.paidBy === name))
     .map((e) => ({
       date: e.createdAt ? new Date(e.createdAt).toISOString() : e.date,
       html: personExpenseRowHtml(e, name),
