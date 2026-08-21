@@ -10,7 +10,6 @@ import {
   getExpenseById,
   getExpenses,
   getExpensesGroupedByDay,
-  getFriendBalances,
   getGrandTotal,
   getTotalForRange,
   getTotalToday,
@@ -1370,47 +1369,58 @@ function getMyGroupBalance(groupId) {
   return round2(getGroupBalances(memberNames).me ?? 0);
 }
 
-// my net position vs. one specific person, same simplified-graph logic as getMyGroupBalance
-function getMyBalanceWith(name) {
-  const transfers = simplifyDebts(getFriendBalances());
-  let net = 0;
-  for (const t of transfers) {
-    if (t.from === "me" && t.to === name) net -= t.amount;
-    if (t.to === "me" && t.from === name) net += t.amount;
+// one person's share of a single expense, whether it's an equal split (a plain
+// name array) or a custom split (an array of {name, amount})
+function shareOf(e, person) {
+  const participants = e.participants ?? [];
+  if (typeof participants[0] === "object") {
+    return participants.find((p) => p.name === person)?.amount ?? 0;
+  }
+  return participants.includes(person) ? e.amountILS / participants.length : 0;
+}
+
+// my real running tab with one specific person, built directly from the actual
+// expenses/settlements the two of us were party to — deliberately NOT the
+// whole-trip minimal-transfer graph (simplifyDebts), which nets debts through
+// third parties to minimize payments and can make a genuine 1-on-1 balance
+// read as zero even though real money is owed between exactly these two people.
+function pairwiseBalance(name, expenses, settlements) {
+  let net = 0; // positive = they owe me
+  for (const e of expenses) {
+    const payer = e.paidBy || "me";
+    if (payer === "me") net += shareOf(e, name);
+    else if (payer === name) net -= shareOf(e, "me");
+  }
+  for (const s of settlements) {
+    if (s.from === "me" && s.to === name) net += s.amount;
+    if (s.from === name && s.to === "me") net -= s.amount;
   }
   return round2(net);
 }
 
-// my net position with one specific person, scoped to a single group's closed
-// sub-ledger — same idea as getMyBalanceWith, but restricted to that group's
-// members so it doesn't get muddied by debts the two of us have elsewhere.
+function getMyBalanceWith(name) {
+  return pairwiseBalance(
+    name,
+    getExpenses().filter((e) => e.isGroup && e.participants?.length),
+    loadSettlements()
+  );
+}
+
+// same as getMyBalanceWith, but restricted to one group's closed sub-ledger —
+// useful for showing where a person's overall balance actually came from.
 function getMyBalanceWithInGroup(name, groupId) {
   const memberNames = new Set(loadFriends().filter((f) => f.groupId === groupId).map((f) => f.name));
   if (!memberNames.has(name)) return 0;
-  const transfers = simplifyDebts(getGroupBalances(memberNames));
-  let net = 0;
-  for (const t of transfers) {
-    if (t.from === "me" && t.to === name) net -= t.amount;
-    if (t.to === "me" && t.from === name) net += t.amount;
-  }
-  return round2(net);
+  const allowed = new Set(["me", ...memberNames]);
+  const settlements = loadSettlements().filter((s) => allowed.has(s.from) && allowed.has(s.to));
+  return pairwiseBalance(name, getGroupExpenses(memberNames), settlements);
 }
 
-// a person can show "מסודר" (no direct debt with me) while still owing/being owed
-// money elsewhere in the group (their debt got routed through someone else in the
-// simplification) — tell those two "zero" cases apart so a real debt is never silent
 function describeBalanceWith(name) {
   const amount = getMyBalanceWith(name);
   const isZero = Math.abs(amount) <= 0.01;
-  const hasOtherDebt = isZero && Math.abs(round2(getFriendBalances()[name] ?? 0)) > 0.01;
   const cls = isZero ? "balance-zero" : amount > 0 ? "balance-positive" : "balance-negative";
-  const text = isZero
-    ? hasOtherDebt
-      ? "אין חוב ישיר איתך"
-      : "מסודר"
-    : amount > 0
-      ? `חייב/ת לך ${formatILS(amount)}`
-      : `אתה חייב ${formatILS(-amount)}`;
+  const text = isZero ? "מסודר" : amount > 0 ? `חייב/ת לך ${formatILS(amount)}` : `אתה חייב ${formatILS(-amount)}`;
   return { amount, cls, text };
 }
 
@@ -1639,13 +1649,29 @@ function dateBadgeHtml(dateStr) {
   return `<span class="date-badge"><span class="date-badge-month">${MONTH_NAMES_EN[month - 1]}</span><span class="date-badge-day">${day}</span></span>`;
 }
 
-function personExpenseRowHtml(e) {
+// the amount+color shown here is this specific expense's contribution to my
+// direct pairwise balance with `name` — my own overall share (myShare) is the
+// wrong number to show on someone else's shared-expenses list, since it never
+// changes no matter whose screen you're looking at. a third party paying (both
+// of us just participants) contributes nothing to our direct balance, so it's
+// shown neutral rather than red/blue.
+function personExpenseRowHtml(e, name) {
   const cat = getCategory(e.category);
+  const payer = e.paidBy || "me";
+  let amount = myShare(e);
+  let cls = "";
+  if (payer === "me") {
+    amount = shareOf(e, name);
+    cls = "balance-positive";
+  } else if (payer === name) {
+    amount = shareOf(e, "me");
+    cls = "balance-negative";
+  }
   return `
         <div class="activity-row">
           ${dateBadgeHtml(e.date)}
           <span class="who">${cat.icon} ${e.note || cat.label}</span>
-          <span class="activity-meta">${formatILS(myShare(e))}</span>
+          <span class="activity-meta ${cls}">${formatILS(amount)}</span>
         </div>`;
 }
 
@@ -1691,7 +1717,7 @@ function personActivityRows(name) {
       const iso = e.createdAt ? new Date(e.createdAt).toISOString() : e.date;
       return {
         date: iso,
-        html: `<span class="who">🧾 ${personLabel(name)} שם עליך הוצאה: ${e.note || getCategory(e.category).label}</span><span class="activity-meta">${formatILS(
+        html: `<span class="who">🧾 ${personLabel(name)} שם/ה עליך הוצאה: ${e.note || getCategory(e.category).label}</span><span class="activity-meta">${formatILS(
           myShare(e)
         )} · ${formatActivityDate(iso)}</span>`,
       };
@@ -1757,7 +1783,7 @@ function openPersonScreen(name) {
   renderPersonGroupBreakdown(name);
 
   const sharedExpenses = getExpenses().filter((e) => e.isGroup && expenseInvolves(e, name));
-  personScreenExpenses.innerHTML = sharedExpenses.map(personExpenseRowHtml).join("");
+  personScreenExpenses.innerHTML = sharedExpenses.map((e) => personExpenseRowHtml(e, name)).join("");
   personScreenExpensesEmpty.hidden = sharedExpenses.length > 0;
 
   const activityHtml = personActivityRows(name);
