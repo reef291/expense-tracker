@@ -128,6 +128,14 @@ button {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
+/* a solid-color emoji (✏️) can't be recolored, so an icon meant to stay quiet
+   and out of the way — like "edit" — uses a plain monochrome svg instead */
+.icon-btn-muted {
+  color: var(--text-muted);
+  box-shadow: none;
+  background: none;
+}
+
 /* ---------- Amount screen ---------- */
 
 .amount-stage {
@@ -643,6 +651,9 @@ input[type="number"] {
 .detail-row > span:last-child {
   font-weight: 500;
   text-align: left;
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: break-word;
 }
 
 .detail-row input[type="checkbox"] {
@@ -1856,6 +1867,19 @@ input[type="number"] {
 
 .balance-zero {
   color: var(--text-muted);
+}
+
+.smart-settle-btn {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--accent-light);
+  color: var(--accent);
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 12px;
 }
 
 .export-btn {

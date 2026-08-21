@@ -115,7 +115,12 @@
       <div class="screen-top">
         <button type="button" class="icon-btn" id="expense-back-btn" aria-label="חזור">‹</button>
         <h2>פרטי ההוצאה</h2>
-        <button type="button" class="icon-btn" id="expense-edit-btn" aria-label="עריכה">✏️</button>
+        <button type="button" class="icon-btn icon-btn-muted" id="expense-edit-btn" aria-label="עריכה">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 20h9" />
+            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z" />
+          </svg>
+        </button>
       </div>
       <div class="expense-detail-body" id="expense-detail-body"></div>
       <input type="file" accept="image/*" id="expense-photo-input" hidden />
@@ -160,14 +165,17 @@
           <p id="group-screen-empty" class="empty-state" hidden></p>
         </div>
 
+        <button type="button" class="smart-settle-btn" id="group-smart-settle-btn">🧮 קיזוז חכם לכל הקבוצה</button>
+        <div class="summary-block" id="group-smart-settle-block" hidden>
+          <h3>קיזוז חכם — מינימום העברות</h3>
+          <p class="split-label">מי צריך להעביר למי כדי שכולם יהיו מסודרים, בכמה שפחות העברות</p>
+          <div id="group-smart-settle-list"></div>
+          <p id="group-smart-settle-empty" class="empty-state" hidden>אין חובות פתוחים בקבוצה 🎉</p>
+        </div>
+
         <div class="summary-block">
           <h3>מאזן חברי הקבוצה</h3>
           <div id="group-screen-balances"></div>
-        </div>
-
-        <div class="summary-block" id="group-screen-expenses-block" hidden>
-          <h3>הוצאות הקבוצה</h3>
-          <div id="group-screen-expenses"></div>
         </div>
 
         <div class="summary-block" id="group-screen-activity-block" hidden>

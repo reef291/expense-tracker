@@ -123,8 +123,10 @@ const groupScreenTitleInput = document.getElementById("group-screen-title-input"
 const groupScreenMembers = document.getElementById("group-screen-members");
 const groupScreenBalances = document.getElementById("group-screen-balances");
 const groupScreenEmpty = document.getElementById("group-screen-empty");
-const groupScreenExpensesBlock = document.getElementById("group-screen-expenses-block");
-const groupScreenExpenses = document.getElementById("group-screen-expenses");
+const groupSmartSettleBtn = document.getElementById("group-smart-settle-btn");
+const groupSmartSettleBlock = document.getElementById("group-smart-settle-block");
+const groupSmartSettleList = document.getElementById("group-smart-settle-list");
+const groupSmartSettleEmpty = document.getElementById("group-smart-settle-empty");
 const groupScreenActivityBlock = document.getElementById("group-screen-activity-block");
 const groupScreenActivity = document.getElementById("group-screen-activity");
 const groupScreenAddExisting = document.getElementById("group-screen-add-existing");
@@ -194,6 +196,7 @@ let previousScreen = "home";
 let currentFilter = null; // { type: 'country'|'month', value }
 let editingExpenseId = null; // set when the category screen is opened to edit an existing expense
 let currentGroupId = null; // the group screen currently being viewed, for the group's own "+" button
+let smartSettleOpen = false; // whether the group's "קיזוז חכם" (full minimal-transfer plan) panel is expanded
 let pendingGroupParticipants = null; // set by "+ add expense" from a group screen, consumed once when the group-purchase toggle turns on
 let pendingGroupId = null; // the group id paired with pendingGroupParticipants, pre-selects the details-screen group picker
 let addReturnGroupId = null; // set when the add-flow was launched from a group's own "+" button, so finishing/cancelling lands back there instead of home
@@ -1573,18 +1576,28 @@ function settlementLine(s) {
   return `${personLabel(s.from)} קיזז/ה ${withWhom}`;
 }
 
-function groupActivityRows(memberNames) {
+// merged, chronological: settlements plus every one of the group's own
+// expenses, same idea as the person screen's "פעילות" — one feed instead of
+// a separate "הוצאות הקבוצה" list to scroll past.
+function groupActivityRows(groupExpenses, memberNames) {
   const allowed = new Set(["me", ...memberNames]);
-  return loadSettlements()
+  const settlementEvents = loadSettlements()
     .filter((s) => allowed.has(s.from) && allowed.has(s.to))
+    .map((s) => ({
+      date: s.date,
+      html: `<div class="activity-row"><span class="activity-check">✓</span><span class="who">${settlementLine(s)}</span><span class="activity-meta">${formatILS(
+        s.amount
+      )} · ${formatActivityDate(s.date)}</span></div>`,
+    }));
+
+  const expenseEvents = groupExpenses.map((e) => ({
+    date: e.createdAt ? new Date(e.createdAt).toISOString() : e.date,
+    html: groupExpenseRowHtml(e),
+  }));
+
+  return [...settlementEvents, ...expenseEvents]
     .sort((a, b) => (b.date || "").localeCompare(a.date || ""))
-    .map(
-      (s) => `
-        <div class="activity-row">
-          <span class="who">✓ ${settlementLine(s)}</span>
-          <span class="activity-meta">${formatILS(s.amount)} · ${formatActivityDate(s.date)}</span>
-        </div>`
-    )
+    .map((item) => item.html)
     .join("");
 }
 
@@ -1599,7 +1612,8 @@ function openGroupScreen(groupId) {
   // "חיובים" is my own to-do list, so only transfers I'm actually a party to belong
   // there — a debt between two other members shows up in the balance list below
   // instead, without a settle action (settling something that isn't yours makes no sense)
-  const myTransfers = simplifyDebts(groupBalances).filter((t) => t.from === "me" || t.to === "me");
+  const allTransfers = simplifyDebts(groupBalances);
+  const myTransfers = allTransfers.filter((t) => t.from === "me" || t.to === "me");
 
   groupScreenTitle.textContent = group.name;
   groupPhotoBtn.dataset.groupId = groupId;
@@ -1621,16 +1635,17 @@ function openGroupScreen(groupId) {
     .map((name) => groupMemberBalanceRowHtml(name, groupBalances))
     .join("");
 
-  const groupExpenses = getGroupExpenses(memberNames);
-  groupScreenExpensesBlock.hidden = groupExpenses.length === 0;
-  groupScreenExpenses.innerHTML = groupExpensesByMonthHtml(groupExpenses);
-  groupScreenExpenses.querySelectorAll(".group-expense-row").forEach((btn) => {
-    btn.addEventListener("click", () => openExpenseDetail(btn.dataset.id, "home"));
-  });
+  groupSmartSettleBlock.hidden = !smartSettleOpen;
+  groupSmartSettleEmpty.hidden = allTransfers.length > 0;
+  renderTransferRows(groupSmartSettleList, allTransfers, () => openGroupScreen(groupId));
 
-  const activityHtml = groupActivityRows(memberNames);
+  const groupExpenses = getGroupExpenses(memberNames);
+  const activityHtml = groupActivityRows(groupExpenses, memberNames);
   groupScreenActivityBlock.hidden = !activityHtml;
   groupScreenActivity.innerHTML = activityHtml;
+  groupScreenActivity.querySelectorAll(".group-expense-row").forEach((btn) => {
+    btn.addEventListener("click", () => openExpenseDetail(btn.dataset.id, "home"));
+  });
 
   const ungrouped = friends.filter((f) => !f.groupId);
   groupScreenAddExisting.hidden = ungrouped.length === 0;
@@ -1692,22 +1707,6 @@ function groupExpenseRowHtml(e) {
         </button>`;
 }
 
-// expenses arrive newest-first (getExpenses()'s order), so a single pass is
-// enough to drop a small month heading in whenever the month actually changes
-function groupExpensesByMonthHtml(expenses) {
-  let html = "";
-  let lastMonth = null;
-  for (const e of expenses) {
-    const month = e.date.slice(0, 7);
-    if (month !== lastMonth) {
-      html += `<div class="group-expenses-month-heading">${formatMonth(month)}</div>`;
-      lastMonth = month;
-    }
-    html += groupExpenseRowHtml(e);
-  }
-  return html;
-}
-
 // one merged, chronological feed: settlements keep their own plain checkmark
 // style, and every shared expense renders exactly like it used to under
 // "הוצאות משותפות" (date badge, category icon, amount colored by direction) —
@@ -1715,12 +1714,18 @@ function groupExpensesByMonthHtml(expenses) {
 function personActivityRows(name) {
   const settlementEvents = loadSettlements()
     .filter((s) => (s.from === "me" && s.to === name) || (s.from === name && s.to === "me"))
-    .map((s) => ({
-      date: s.date,
-      html: `<div class="activity-row"><span class="activity-check">✓</span><span class="who">${settlementLine(s)}</span><span class="activity-meta">${formatILS(
-        s.amount
-      )} · ${formatActivityDate(s.date)}</span></div>`,
-    }));
+    .map((s) => {
+      // same sign convention as the expense rows below: paying them (from me)
+      // moves the balance the same direction a "they owe me" expense does — a
+      // reader summing every visible number should land on the balance above.
+      const sign = s.from === "me" ? "+" : "-";
+      return {
+        date: s.date,
+        html: `<div class="activity-row"><span class="activity-check">✓</span><span class="who">${settlementLine(s)}</span><span class="activity-meta">${sign}${formatILS(
+          s.amount
+        )} · ${formatActivityDate(s.date)}</span></div>`,
+      };
+    });
 
   // only expenses that actually move the balance between me and `name` belong
   // here — one paid by a third party (both of us just participants) doesn't
@@ -2314,6 +2319,10 @@ filterBackBtn.addEventListener("click", () => {
   showScreen("home");
 });
 groupScreenBackBtn.addEventListener("click", () => showScreen("home"));
+groupSmartSettleBtn.addEventListener("click", () => {
+  smartSettleOpen = !smartSettleOpen;
+  groupSmartSettleBlock.hidden = !smartSettleOpen;
+});
 groupScreenTitle.addEventListener("click", () => {
   groupScreenTitleInput.value = groupScreenTitle.textContent;
   groupScreenTitle.hidden = true;
