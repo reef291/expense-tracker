@@ -127,8 +127,9 @@ const groupDebtsList = document.getElementById("group-debts-list");
 const groupDebtsEmpty = document.getElementById("group-debts-empty");
 const groupScreenActivityBlock = document.getElementById("group-screen-activity-block");
 const groupScreenActivity = document.getElementById("group-screen-activity");
-const groupScreenAddExisting = document.getElementById("group-screen-add-existing");
 const groupScreenAddExistingChips = document.getElementById("group-screen-add-existing-chips");
+const groupAddMemberInput = document.getElementById("group-add-member-input");
+const groupAddMemberBtn = document.getElementById("group-add-member-btn");
 const personScreenBackBtn = document.getElementById("person-screen-back-btn");
 const personScreenTitle = document.getElementById("person-screen-title");
 const personScreenTitleInput = document.getElementById("person-screen-title-input");
@@ -1670,7 +1671,6 @@ function openGroupScreen(groupId) {
   });
 
   const ungrouped = friends.filter((f) => !f.groupId);
-  groupScreenAddExisting.hidden = ungrouped.length === 0;
   groupScreenAddExistingChips.innerHTML = ungrouped
     .map((f) => `<button type="button" class="chip" data-name="${f.name}">${personLabel(f.name)}</button>`)
     .join("");
@@ -2358,6 +2358,18 @@ groupDebtsModeToggle.addEventListener("click", (e) => {
     groupDebtsList.classList.remove("fading");
   }, 180);
 });
+function handleGroupAddMember() {
+  const name = groupAddMemberInput.value.trim();
+  if (!name || name === "me" || !currentGroupId) return;
+  addFriend(name, currentGroupId);
+  groupAddMemberInput.value = "";
+  openGroupScreen(currentGroupId);
+}
+groupAddMemberBtn.addEventListener("click", handleGroupAddMember);
+groupAddMemberInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") handleGroupAddMember();
+});
+
 groupScreenTitle.addEventListener("click", () => {
   groupScreenTitleInput.value = groupScreenTitle.textContent;
   groupScreenTitle.hidden = true;
