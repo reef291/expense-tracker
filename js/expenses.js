@@ -2,9 +2,31 @@ import { loadExpenses, loadSettlements, saveExpenses } from "./storage.js";
 import { fetchRemoteExpenses, isRemoteEnabled, postRemoteExpense } from "./remote.js";
 
 let expenses = loadExpenses();
+healBrokenSplits_();
 
 export function round2(n) {
   return Math.round((Number(n) || 0) * 100) / 100;
+}
+
+// one-time self-heal, run on every load: a custom (amount/percent) split
+// saved before resolveParticipants() enforced an exact total could have
+// participant amounts that don't add up to amountILS. That breaks the
+// zero-sum invariant getGroupBalances relies on, which makes simplifyDebts
+// silently drop people from "קיזוז חכם" instead of just rounding oddly.
+// Fix any such record in place, quietly, so nobody has to hunt it down by hand.
+function healBrokenSplits_() {
+  let changed = false;
+  for (const e of expenses) {
+    if (!e.isGroup || !e.participants?.length || typeof e.participants[0] !== "object") continue;
+    const sum = round2(e.participants.reduce((s, p) => s + (Number(p.amount) || 0), 0));
+    const diff = round2(e.amountILS - sum);
+    if (Math.abs(diff) > 0.01) {
+      const last = e.participants.length - 1;
+      e.participants = e.participants.map((p, i) => (i === last ? { ...p, amount: round2(p.amount + diff) } : p));
+      changed = true;
+    }
+  }
+  if (changed) saveExpenses(expenses);
 }
 
 export function myShare(e) {
