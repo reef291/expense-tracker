@@ -107,6 +107,32 @@ button {
   width: 34px;
 }
 
+.screen-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* the group header has an asymmetric back-button vs. two-icon actions group —
+   centering the title in the space *between* them still lands it off true
+   center by half that width difference, so take it out of the flow entirely
+   and center it on the header itself instead */
+#screen-group .screen-top {
+  position: relative;
+}
+
+#screen-group .screen-top #group-screen-title,
+#screen-group .screen-top #group-screen-title-input {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  max-width: 55%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .amount-screen-total {
   font-size: 0.8rem;
   font-weight: 600;
@@ -267,11 +293,12 @@ input[type="number"] {
 
 .category-grid {
   flex: 1;
+  min-height: 0;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 8px;
   padding: 16px;
-  align-content: center;
+  align-content: start;
 }
 
 .cat-tile {
@@ -1291,8 +1318,10 @@ input[type="number"] {
   line-height: 1;
   cursor: grab;
   touch-action: none;
-  padding: 4px 2px;
-  margin-inline-end: -2px;
+  /* padding makes the real hit area ~44px, the negative margin keeps it from
+     visually shoving the title over — the glyph itself stays small */
+  padding: 14px 12px;
+  margin: -14px -10px -14px -12px;
 }
 
 .summary-block.dragging {
