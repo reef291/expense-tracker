@@ -1285,6 +1285,23 @@ input[type="number"] {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
 }
 
+.drag-handle {
+  color: var(--text-muted);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: grab;
+  touch-action: none;
+  padding: 4px 2px;
+  margin-inline-end: -2px;
+}
+
+.summary-block.dragging {
+  z-index: 5;
+  opacity: 0.9;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+  border-radius: var(--radius-sm);
+}
+
 .summary-block-toggle {
   display: flex;
   align-items: center;

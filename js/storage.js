@@ -116,3 +116,18 @@ export function loadDisplayCurrency() {
 export function saveDisplayCurrency(code) {
   localStorage.setItem(DISPLAY_CURRENCY_KEY, code);
 }
+
+const SECTION_ORDER_KEY = "settle-section-order";
+
+export function loadSettleSectionOrder() {
+  try {
+    const order = JSON.parse(localStorage.getItem(SECTION_ORDER_KEY));
+    return Array.isArray(order) && order.length === 2 ? order : ["groups", "friends"];
+  } catch {
+    return ["groups", "friends"];
+  }
+}
+
+export function saveSettleSectionOrder(order) {
+  localStorage.setItem(SECTION_ORDER_KEY, JSON.stringify(order));
+}

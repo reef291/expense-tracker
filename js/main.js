@@ -31,6 +31,7 @@ import {
   loadGroupName,
   loadGroups,
   loadLastContext,
+  loadSettleSectionOrder,
   loadSettlements,
   loadTripBudget,
   loadTripDates,
@@ -39,6 +40,7 @@ import {
   saveGroupName,
   saveGroups,
   saveLastContext,
+  saveSettleSectionOrder,
   saveSettlements,
   saveTripBudget,
   saveTripDates,
@@ -2544,6 +2546,64 @@ document.querySelectorAll(".summary-block-toggle").forEach((btn) => {
     btn.setAttribute("aria-expanded", String(!collapsed));
   });
 });
+
+// drag-to-reorder for the two settle-tab sections (קבוצות / חברים) — with
+// only two items, "swap once the dragged one's center crosses the other's"
+// is the entire reordering rule needed.
+function initSectionReorder() {
+  const groupsSection = document.getElementById("groups-section");
+  const friendsSection = document.getElementById("friends-section");
+  const container = groupsSection.parentElement;
+  const sections = { groups: groupsSection, friends: friendsSection };
+
+  const order = loadSettleSectionOrder();
+  if (order[0] !== groupsSection.dataset.section) {
+    container.insertBefore(sections[order[0]], sections[order[1]]);
+  }
+
+  document.querySelectorAll("[data-drag-handle]").forEach((handle) => {
+    handle.addEventListener("click", (e) => e.stopPropagation());
+
+    handle.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const dragged = handle.closest(".summary-block");
+      const other = dragged === groupsSection ? friendsSection : groupsSection;
+      let startY = e.clientY;
+      dragged.classList.add("dragging");
+
+      const onMove = (moveEvent) => {
+        const dy = moveEvent.clientY - startY;
+        dragged.style.transform = `translateY(${dy}px)`;
+        const otherRect = other.getBoundingClientRect();
+        const draggedRect = dragged.getBoundingClientRect();
+        const draggedCenter = draggedRect.top + draggedRect.height / 2;
+        const otherCenter = otherRect.top + otherRect.height / 2;
+        const crossedDown = dy > 0 && draggedCenter > otherCenter;
+        const crossedUp = dy < 0 && draggedCenter < otherCenter;
+        if (crossedDown || crossedUp) {
+          if (dragged.nextElementSibling === other) container.insertBefore(other, dragged);
+          else container.insertBefore(dragged, other);
+          dragged.style.transform = "translateY(0px)";
+          startY = moveEvent.clientY;
+        }
+      };
+
+      const onUp = () => {
+        document.removeEventListener("pointermove", onMove);
+        document.removeEventListener("pointerup", onUp);
+        dragged.classList.remove("dragging");
+        dragged.style.transform = "";
+        const newOrder = [...container.querySelectorAll(".summary-block[data-section]")].map((s) => s.dataset.section);
+        saveSettleSectionOrder(newOrder);
+      };
+
+      document.addEventListener("pointermove", onMove);
+      document.addEventListener("pointerup", onUp);
+    });
+  });
+}
+initSectionReorder();
 
 groupPhotoWrap.addEventListener("click", () => groupPhotoInput.click());
 groupPhotoInput.addEventListener("change", async () => {
