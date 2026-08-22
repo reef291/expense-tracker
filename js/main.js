@@ -1338,12 +1338,13 @@ function buildInviteLink(groupId, groupName) {
   return url.toString();
 }
 
-function copyInviteLink(groupId, groupName, message = "קישור הועתק") {
+function copyInviteLink(groupId, groupName, toastMessage = "קישור הועתק") {
   const link = buildInviteLink(groupId, groupName);
+  const inviteText = `הוזמנת להצטרף לקבוצת "${groupName}" באפליקציית "הוצאות הטיול" 🧳\n${link}`;
   navigator.clipboard
-    ?.writeText(link)
-    .then(() => showToast(message))
-    .catch(() => showInviteLinkSheet(link));
+    ?.writeText(inviteText)
+    .then(() => showToast(toastMessage))
+    .catch(() => showInviteLinkSheet(inviteText));
 }
 
 // clipboard.writeText can reject silently in some mobile/PWA contexts, and
@@ -1353,7 +1354,7 @@ function copyInviteLink(groupId, groupName, message = "קישור הועתק") {
 function showInviteLinkSheet(link) {
   sheetMode = "invite-link";
   sheetTitle.hidden = false;
-  sheetTitle.textContent = "קישור ההזמנה — הקש והחזק כדי להעתיק";
+  sheetTitle.textContent = "הודעת ההזמנה — הקש והחזק כדי להעתיק";
   currencySearch.hidden = false;
   currencySearch.value = link;
   currencyListEl.innerHTML = "";
@@ -1984,10 +1985,17 @@ function handleAddEntity() {
   }
 
   if (name === "me") return;
-  addFriend(name, addFriendGroupSelect.value || null);
+  const groupId = addFriendGroupSelect.value || null;
+  addFriend(name, groupId);
   addEntityInput.value = "";
   collapseAddEntityForm();
   renderFriendsTab();
+  // adding them straight into a group means you're about to invite them
+  // anyway — copy the link right here instead of making a second trip to it
+  if (groupId) {
+    const group = loadGroups().find((g) => g.id === groupId);
+    if (group) copyInviteLink(group.id, group.name, "קישור לקבוצה הועתק");
+  }
 }
 
 function render() {
@@ -2238,9 +2246,10 @@ function openExpenseDetail(id, cameFrom, keepEditMode = false) {
 }
 
 function resizeAmountInput(el) {
-  // +0.6ch buffer: bold digits render wider than the "0" glyph "ch" is measured
-  // against, so a tight fit clips the last character.
-  el.style.width = `${Math.max(1.5, el.value.length + 0.6)}ch`;
+  // +1.2ch buffer: bold digits render wider than the "0" glyph "ch" is measured
+  // against, so too tight a fit clips the last character — this needs enough
+  // slack to survive real device font rendering, not just this browser's.
+  el.style.width = `${Math.max(1.5, el.value.length + 1.2)}ch`;
 }
 
 expenseDetailBody.addEventListener("click", (e) => {
@@ -2563,9 +2572,10 @@ document.querySelectorAll(".summary-block-toggle").forEach((btn) => {
   });
 });
 
-// drag-to-reorder for the two settle-tab sections (קבוצות / חברים) — with
-// only two items, "swap once the dragged one's center crosses the other's"
-// is the entire reordering rule needed.
+// tap-to-swap for the two settle-tab sections (קבוצות / חברים). This used to
+// be pointer-drag-to-reorder, but with only two possible positions, dragging
+// added a hit-target/threshold/smoothness problem for zero actual benefit
+// over just swapping on tap — so swap on tap it is.
 function initSectionReorder() {
   const groupsSection = document.getElementById("groups-section");
   const friendsSection = document.getElementById("friends-section");
@@ -2577,47 +2587,18 @@ function initSectionReorder() {
     container.insertBefore(sections[order[0]], sections[order[1]]);
   }
 
-  document.querySelectorAll("[data-drag-handle]").forEach((handle) => {
-    handle.addEventListener("click", (e) => e.stopPropagation());
-
-    handle.addEventListener("pointerdown", (e) => {
-      e.preventDefault();
+  document.querySelectorAll("[data-swap-handle]").forEach((handle) => {
+    handle.addEventListener("click", (e) => {
       e.stopPropagation();
-      const dragged = handle.closest(".summary-block");
-      const other = dragged === groupsSection ? friendsSection : groupsSection;
-      let startY = e.clientY;
-      dragged.classList.add("dragging");
-
-      const onMove = (moveEvent) => {
-        const dy = moveEvent.clientY - startY;
-        dragged.style.transform = `translateY(${dy}px)`;
-        const otherRect = other.getBoundingClientRect();
-        const draggedRect = dragged.getBoundingClientRect();
-        // swap as soon as the leading edge passes the other block's edge, not
-        // once full centers cross — these blocks can be tall, and waiting for
-        // centers to cross made a small, deliberate drag feel like it wasn't
-        // doing anything
-        const crossedDown = dy > 0 && draggedRect.top > otherRect.top;
-        const crossedUp = dy < 0 && draggedRect.top < otherRect.top;
-        if (crossedDown || crossedUp) {
-          if (dragged.nextElementSibling === other) container.insertBefore(other, dragged);
-          else container.insertBefore(dragged, other);
-          dragged.style.transform = "translateY(0px)";
-          startY = moveEvent.clientY;
-        }
-      };
-
-      const onUp = () => {
-        document.removeEventListener("pointermove", onMove);
-        document.removeEventListener("pointerup", onUp);
-        dragged.classList.remove("dragging");
-        dragged.style.transform = "";
-        const newOrder = [...container.querySelectorAll(".summary-block[data-section]")].map((s) => s.dataset.section);
-        saveSettleSectionOrder(newOrder);
-      };
-
-      document.addEventListener("pointermove", onMove);
-      document.addEventListener("pointerup", onUp);
+      groupsSection.classList.add("swapping");
+      friendsSection.classList.add("swapping");
+      setTimeout(() => {
+        if (groupsSection.nextElementSibling === friendsSection) container.insertBefore(friendsSection, groupsSection);
+        else container.insertBefore(groupsSection, friendsSection);
+        saveSettleSectionOrder([...container.querySelectorAll(".summary-block[data-section]")].map((s) => s.dataset.section));
+        groupsSection.classList.remove("swapping");
+        friendsSection.classList.remove("swapping");
+      }, 150);
     });
   });
 }

@@ -200,8 +200,15 @@
         </div>
 
         <div class="summary-block" id="group-screen-balances-block">
-          <h3>מאזן חברי הקבוצה</h3>
-          <div id="group-screen-balances"></div>
+          <button type="button" class="summary-block-toggle" id="group-balances-toggle" aria-expanded="false">
+            <h3>מאזן חברי הקבוצה</h3>
+            <span class="summary-block-chevron">▾</span>
+          </button>
+          <div class="summary-block-body collapsed" id="group-balances-body">
+            <div class="summary-block-body-inner">
+              <div id="group-screen-balances"></div>
+            </div>
+          </div>
         </div>
 
         <div class="summary-block" id="group-screen-activity-block" hidden>
@@ -347,7 +354,7 @@
 
         <div class="summary-block" id="groups-section" data-section="groups">
           <button type="button" class="summary-block-toggle" id="groups-toggle" aria-expanded="true">
-            <span class="drag-handle" data-drag-handle title="גרור כדי לשנות סדר">⠿</span>
+            <span class="drag-handle" data-swap-handle title="החלף סדר בין קבוצות לחברים">⇅</span>
             <h3>קבוצות <span class="summary-block-count" id="groups-count"></span></h3>
             <span class="summary-block-chevron">▾</span>
           </button>
@@ -360,7 +367,7 @@
 
         <div class="summary-block" id="friends-section" data-section="friends">
           <button type="button" class="summary-block-toggle" id="friends-toggle" aria-expanded="true">
-            <span class="drag-handle" data-drag-handle title="גרור כדי לשנות סדר">⠿</span>
+            <span class="drag-handle" data-swap-handle title="החלף סדר בין קבוצות לחברים">⇅</span>
             <h3>חברים <span class="summary-block-count" id="friends-count"></span></h3>
             <span class="summary-block-chevron">▾</span>
           </button>

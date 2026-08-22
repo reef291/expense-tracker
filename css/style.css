@@ -1316,19 +1316,16 @@ input[type="number"] {
   color: var(--text-muted);
   font-size: 1.1rem;
   line-height: 1;
-  cursor: grab;
-  touch-action: none;
+  cursor: pointer;
   /* padding makes the real hit area ~44px, the negative margin keeps it from
      visually shoving the title over — the glyph itself stays small */
   padding: 14px 12px;
   margin: -14px -10px -14px -12px;
 }
 
-.summary-block.dragging {
-  z-index: 5;
-  opacity: 0.9;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
-  border-radius: var(--radius-sm);
+.summary-block.swapping {
+  transition: opacity 0.15s ease;
+  opacity: 0;
 }
 
 .summary-block-toggle {
