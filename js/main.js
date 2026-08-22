@@ -153,6 +153,7 @@ const groupPhotoWrap = document.getElementById("group-photo-wrap");
 const groupPhotoBtn = document.getElementById("group-photo-btn");
 const groupPhotoInput = document.getElementById("group-photo-input");
 const addFriendGroupSelect = document.getElementById("add-friend-group-select");
+const addFriendGroupSelectWrap = document.getElementById("add-friend-group-select-wrap");
 const friendsListEl = document.getElementById("friends-list");
 const friendsEmptyEl = document.getElementById("friends-empty");
 const addEntityFabBtn = document.getElementById("add-entity-fab-btn");
@@ -2411,6 +2412,7 @@ function openFilterScreen(type, value) {
 
 initCategoryGrid();
 applySelectedCurrency();
+resizeAmountInput(amountInput);
 
 amountInput.addEventListener("input", handleAmountInput);
 amountInput.addEventListener("keydown", (e) => {
@@ -2601,7 +2603,7 @@ entityTypeToggle.addEventListener("click", (e) => {
   const btn = e.target.closest(".entry-type-btn");
   if (!btn) return;
   entityTypeToggle.querySelectorAll(".entry-type-btn").forEach((b) => b.classList.toggle("selected", b === btn));
-  addFriendGroupSelect.hidden = btn.dataset.type !== "friend";
+  addFriendGroupSelectWrap.classList.toggle("collapsed", btn.dataset.type !== "friend");
   addEntityInput.placeholder = btn.dataset.type === "group" ? "שם קבוצה חדשה…" : "שם המטייל…";
 });
 
