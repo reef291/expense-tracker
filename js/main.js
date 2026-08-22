@@ -118,9 +118,12 @@ const friendsCountEl = document.getElementById("friends-count");
 const groupScreenBackBtn = document.getElementById("group-screen-back-btn");
 const groupScreenTitle = document.getElementById("group-screen-title");
 const groupScreenTitleInput = document.getElementById("group-screen-title-input");
+const groupScreenChargesBlock = document.getElementById("group-screen-charges-block");
 const groupScreenMembers = document.getElementById("group-screen-members");
+const groupScreenBalancesBlock = document.getElementById("group-screen-balances-block");
 const groupScreenBalances = document.getElementById("group-screen-balances");
 const groupScreenEmpty = document.getElementById("group-screen-empty");
+const groupDebtsBlock = document.getElementById("group-debts-block");
 const groupDebtsModeToggle = document.getElementById("group-debts-mode-toggle");
 const groupDebtsHint = document.getElementById("group-debts-hint");
 const groupDebtsList = document.getElementById("group-debts-list");
@@ -132,6 +135,7 @@ const groupAddMemberInput = document.getElementById("group-add-member-input");
 const groupAddMemberBtn = document.getElementById("group-add-member-btn");
 const groupEditBtn = document.getElementById("group-edit-btn");
 const groupEditPanel = document.getElementById("group-edit-panel");
+const groupEditSaveBtn = document.getElementById("group-edit-save-btn");
 const groupEditMembersList = document.getElementById("group-edit-members-list");
 const groupDeleteBtn = document.getElementById("group-delete-btn");
 const personScreenBackBtn = document.getElementById("person-screen-back-btn");
@@ -1695,6 +1699,14 @@ function openGroupScreen(groupId) {
     btn.addEventListener("click", () => removeMemberFromGroup(btn.dataset.name, groupId));
   });
 
+  // edit mode is a focused, condensed view — everything else (charges, debts,
+  // balances, activity) steps aside while it's open instead of piling up
+  // underneath it, and comes back once "שמור" closes it.
+  [groupScreenChargesBlock, groupDebtsBlock, groupScreenBalancesBlock].forEach((block) => {
+    block.hidden = groupEditMode;
+  });
+  if (groupEditMode) groupScreenActivityBlock.hidden = true;
+
   showScreen("group");
 }
 
@@ -2404,6 +2416,10 @@ groupAddMemberInput.addEventListener("keydown", (e) => {
 });
 groupEditBtn.addEventListener("click", () => {
   groupEditMode = !groupEditMode;
+  if (currentGroupId) openGroupScreen(currentGroupId);
+});
+groupEditSaveBtn.addEventListener("click", () => {
+  groupEditMode = false;
   if (currentGroupId) openGroupScreen(currentGroupId);
 });
 groupDeleteBtn.addEventListener("click", () => {

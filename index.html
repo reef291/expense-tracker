@@ -165,23 +165,26 @@
         <input type="file" accept="image/*" id="group-photo-input" hidden />
 
         <div class="summary-block group-add-members-block" id="group-edit-panel" hidden>
-          <h3>עריכת קבוצה</h3>
+          <div class="group-edit-header">
+            <h3>עריכת קבוצה</h3>
+            <button type="button" class="group-edit-save-btn" id="group-edit-save-btn">שמור</button>
+          </div>
           <div class="add-entity-row">
             <input type="text" id="group-add-member-input" class="clean-input" placeholder="שם מטייל חדש…" autocomplete="off" />
             <button type="button" class="add-friend-btn" id="group-add-member-btn">הוספה</button>
           </div>
           <div class="chips-row" id="group-screen-add-existing-chips"></div>
           <div class="group-edit-members-list" id="group-edit-members-list"></div>
-          <button type="button" class="destructive-btn" id="group-delete-btn">מחק קבוצה</button>
+          <button type="button" class="group-delete-btn" id="group-delete-btn">🗑️ מחיקת הקבוצה לצמיתות</button>
         </div>
 
-        <div class="summary-block">
+        <div class="summary-block" id="group-screen-charges-block">
           <h3>חיובים</h3>
           <div id="group-screen-members"></div>
           <p id="group-screen-empty" class="empty-state" hidden></p>
         </div>
 
-        <div class="summary-block">
+        <div class="summary-block" id="group-debts-block">
           <button type="button" class="summary-block-toggle" id="group-debts-toggle" aria-expanded="false">
             <h3>💰 חובות בקבוצה</h3>
             <span class="summary-block-chevron">▾</span>
@@ -199,7 +202,7 @@
           </div>
         </div>
 
-        <div class="summary-block">
+        <div class="summary-block" id="group-screen-balances-block">
           <h3>מאזן חברי הקבוצה</h3>
           <div id="group-screen-balances"></div>
         </div>
