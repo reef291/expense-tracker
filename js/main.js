@@ -551,6 +551,7 @@ function startNewExpense() {
   pendingGroupId = null;
   addReturnGroupId = null;
   amountInput.value = "";
+  resizeAmountInput(amountInput);
   amountContinue.disabled = true;
   selected = { code: context.currency, rate: context.rate };
   applySelectedCurrency();
@@ -584,6 +585,7 @@ entryTypeToggle.addEventListener("click", (e) => {
 function handleAmountInput() {
   const value = amountInput.value.replace(",", ".");
   amountContinue.disabled = !(Number(value) > 0);
+  resizeAmountInput(amountInput);
 }
 
 function handleAmountContinue() {
@@ -1080,7 +1082,7 @@ function renderPace() {
   if (document.activeElement !== tripBudgetInput) tripBudgetInput.value = budget ? formatThousands(String(budget)) : "";
 
   if (!trip?.start || !trip?.end) {
-    paceStats.innerHTML = `<p class="pace-hint">הגדר תאריכי טיול כדי לראות קצב הוצאות וימי טיול</p>`;
+    paceStats.innerHTML = `<p class="pace-hint">הגדר תאריך ותקציב טיול בכדי לראות תחזית טיול</p>`;
     statToday.classList.remove("stat-value-over", "stat-value-under");
     paceBudgetLine.hidden = true;
     return;
@@ -2116,8 +2118,9 @@ function renderExpenseViewBody(e, cat, country) {
   return `
     <div class="detail-hero">
       <span class="detail-icon">${cat.icon}</span>
+      ${e.isIncome ? `<span class="detail-income-badge">הכנסה</span>` : ""}
       <div class="detail-amount-row">
-        <span class="detail-amount-display">${formatNumber(round2(e.amountILS))}</span>
+        <span class="detail-amount-display${e.isIncome ? " income" : ""}">${formatNumber(round2(e.amountILS))}</span>
         <span class="detail-amount-symbol">₪</span>
       </div>
       <span class="detail-currency-chip">${formatNumber(e.amountLocal)} ${getCurrency(e.currencyLocal).symbol} ${e.currencyLocal}</span>
@@ -2132,6 +2135,7 @@ function renderExpenseViewBody(e, cat, country) {
       </button>
       <div class="detail-row"><span>מיקום</span><span>${e.location || "—"}</span></div>
       <div class="detail-row"><span>פירוט</span><span>${e.note || "—"}</span></div>
+      <div class="detail-row"><span>סוג</span><span>${e.isIncome ? "הכנסה" : "הוצאה"}</span></div>
       <div class="detail-row"><span>קניה קבוצתית</span><span>${e.isGroup ? "כן" : "לא"}</span></div>
       <div class="detail-row"><span>נכלל בסה"כ</span><span>${e.excludeFromTotal ? "לא" : "כן"}</span></div>
     </div>
@@ -2157,8 +2161,9 @@ function renderExpenseEditBody(e, cat, country) {
   return `
     <div class="detail-hero">
       <span class="detail-icon">${cat.icon}</span>
+      ${e.isIncome ? `<span class="detail-income-badge">הכנסה</span>` : ""}
       <div class="detail-amount-row">
-        <input type="number" step="0.01" min="0" class="detail-amount-input" id="detail-amount-input" value="${round2(e.amountILS)}" />
+        <input type="number" step="0.01" min="0" class="detail-amount-input${e.isIncome ? " income" : ""}" id="detail-amount-input" value="${round2(e.amountILS)}" />
         <span class="detail-amount-symbol">₪</span>
       </div>
       <button type="button" class="detail-currency-chip" id="detail-currency-btn">
@@ -2186,6 +2191,10 @@ function renderExpenseEditBody(e, cat, country) {
       <div class="detail-row">
         <span>פירוט</span>
         <input type="text" id="detail-note-input" value="${e.note}" placeholder="פירוט" />
+      </div>
+      <div class="detail-row">
+        <span>הכנסה</span>
+        <input type="checkbox" id="detail-income-toggle" ${e.isIncome ? "checked" : ""} />
       </div>
       <div class="detail-row">
         <span>קניה קבוצתית</span>
@@ -2318,6 +2327,11 @@ expenseDetailBody.addEventListener("change", (e) => {
     updateExpense(id, { note: e.target.value.trim() });
   } else if (e.target.id === "detail-amount-input") {
     updateExpense(id, { amountILS: round2(e.target.value) });
+  } else if (e.target.id === "detail-income-toggle") {
+    updateExpense(id, { isIncome: e.target.checked });
+    render();
+    openExpenseDetail(id, previousScreen, true);
+    return;
   } else if (e.target.id === "detail-group-toggle") {
     const isGroup = e.target.checked;
     const patch = { isGroup };

@@ -742,6 +742,20 @@ input[type="number"] {
   color: var(--text);
 }
 
+.detail-amount-display.income,
+.detail-amount-input.income {
+  color: #34c759;
+}
+
+.detail-income-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #34c759;
+  background: rgba(52, 199, 89, 0.12);
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+
 .detail-amount-input {
   border: none;
   background: transparent;
