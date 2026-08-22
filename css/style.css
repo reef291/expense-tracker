@@ -1471,6 +1471,14 @@ input[type="number"] {
   text-align: center;
 }
 
+.person-screen-title-btn::after {
+  content: "✎";
+  font-size: 0.65em;
+  font-weight: 400;
+  color: var(--text-muted);
+  margin-inline-start: 6px;
+}
+
 .person-screen-title-input {
   border-bottom: 1px solid var(--accent);
   outline: none;

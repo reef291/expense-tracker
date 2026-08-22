@@ -1969,8 +1969,10 @@ function handleAddEntity() {
     collapseAddEntityForm();
     renderFriendsTab();
     if (group) {
-      openGroupScreen(group.id);
+      // copy first, before the screen switch below repaints the page — doing it
+      // after left the copy racing the transition and the toast never showing
       copyInviteLink(group.id, group.name, "קישור לקבוצה הועתק");
+      openGroupScreen(group.id);
     }
     return;
   }
@@ -2416,7 +2418,14 @@ groupDebtsModeToggle.addEventListener("click", (e) => {
 function handleGroupAddMember() {
   const name = groupAddMemberInput.value.trim();
   if (!name || name === "me" || !currentGroupId) return;
-  addFriend(name, currentGroupId);
+  // addFriend() no-ops if this name already exists anywhere (as a friend or in
+  // another group) — reassign them here instead, so typing an existing name
+  // actually moves them into this group instead of silently doing nothing.
+  if (loadFriends().some((f) => f.name === name)) {
+    addExistingFriendToGroup(name, currentGroupId);
+  } else {
+    addFriend(name, currentGroupId);
+  }
   groupAddMemberInput.value = "";
   openGroupScreen(currentGroupId);
 }
