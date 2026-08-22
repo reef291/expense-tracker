@@ -23,7 +23,7 @@ import {
   updateExpense,
 } from "./expenses.js";
 import { fetchRemoteGroupMembers, isRemoteEnabled, joinRemoteGroup } from "./remote.js";
-import { setApiUrlOverride } from "./config.js";
+import { getApiUrl, setApiUrlOverride } from "./config.js";
 import { exportExpensesToCsv, exportExpensesToXlsx } from "./export.js";
 import {
   loadDisplayCurrency,
@@ -1341,13 +1341,25 @@ function copyInviteLink(groupId, groupName, message = "קישור הועתק") {
   navigator.clipboard
     ?.writeText(link)
     .then(() => showToast(message))
-    .catch(() => {
-      // clipboard blocked/unavailable — fall back to showing the link directly
-      const note = isRemoteEnabled()
-        ? "קישור ההזמנה:"
-        : "קישור ההזמנה. שים לב: הוא יעבוד רק אחרי שתארח את העמוד אונליין — כרגע הוא רץ מקומית בלבד:";
-      prompt(note, link);
-    });
+    .catch(() => showInviteLinkSheet(link));
+}
+
+// clipboard.writeText can reject silently in some mobile/PWA contexts, and
+// prompt() called from that async catch gets silently blocked by iOS Safari
+// (it only allows prompt/alert/confirm synchronously inside the click itself)
+// — so the fallback has to be our own UI, not a native dialog.
+function showInviteLinkSheet(link) {
+  sheetMode = "invite-link";
+  sheetTitle.hidden = false;
+  sheetTitle.textContent = "קישור ההזמנה — הקש והחזק כדי להעתיק";
+  currencySearch.hidden = false;
+  currencySearch.value = link;
+  currencyListEl.innerHTML = "";
+  sheetBackdrop.classList.add("open");
+  setTimeout(() => {
+    currencySearch.focus();
+    currencySearch.select();
+  }, 300);
 }
 
 // there's no per-expense "group" tag, so a group's own balance can only be built
