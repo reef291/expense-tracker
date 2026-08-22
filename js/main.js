@@ -153,6 +153,8 @@ const groupPhotoInput = document.getElementById("group-photo-input");
 const addFriendGroupSelect = document.getElementById("add-friend-group-select");
 const friendsListEl = document.getElementById("friends-list");
 const friendsEmptyEl = document.getElementById("friends-empty");
+const addEntityFabBtn = document.getElementById("add-entity-fab-btn");
+const addEntityBlock = document.getElementById("add-entity-block");
 const addEntityInput = document.getElementById("add-entity-input");
 const addEntityBtn = document.getElementById("add-entity-btn");
 const entityTypeToggle = document.getElementById("entity-type-toggle");
@@ -1950,6 +1952,11 @@ function copyAmount(amount) {
     .catch(() => {});
 }
 
+function collapseAddEntityForm() {
+  addEntityBlock.hidden = true;
+  addEntityFabBtn.hidden = false;
+}
+
 function handleAddEntity() {
   const name = addEntityInput.value.trim();
   if (!name) return;
@@ -1958,6 +1965,7 @@ function handleAddEntity() {
   if (type === "group") {
     const group = addGroup(name);
     addEntityInput.value = "";
+    collapseAddEntityForm();
     renderFriendsTab();
     if (group) {
       openGroupScreen(group.id);
@@ -1969,6 +1977,7 @@ function handleAddEntity() {
   if (name === "me") return;
   addFriend(name, addFriendGroupSelect.value || null);
   addEntityInput.value = "";
+  collapseAddEntityForm();
   renderFriendsTab();
 }
 
@@ -2414,14 +2423,20 @@ groupAddMemberBtn.addEventListener("click", handleGroupAddMember);
 groupAddMemberInput.addEventListener("keydown", (e) => {
   if (e.key === "Enter") handleGroupAddMember();
 });
-groupEditBtn.addEventListener("click", () => {
-  groupEditMode = !groupEditMode;
-  if (currentGroupId) openGroupScreen(currentGroupId);
-});
-groupEditSaveBtn.addEventListener("click", () => {
-  groupEditMode = false;
-  if (currentGroupId) openGroupScreen(currentGroupId);
-});
+// crossfades the whole group screen while flipping edit mode, so switching
+// in/out of the condensed edit view reads as a transition, not an instant cut
+function toggleGroupEditMode(nextMode) {
+  if (!currentGroupId) return;
+  const panel = document.getElementById("group-screen-panel");
+  panel.classList.add("fading");
+  setTimeout(() => {
+    groupEditMode = nextMode;
+    openGroupScreen(currentGroupId);
+    panel.classList.remove("fading");
+  }, 180);
+}
+groupEditBtn.addEventListener("click", () => toggleGroupEditMode(!groupEditMode));
+groupEditSaveBtn.addEventListener("click", () => toggleGroupEditMode(false));
 groupDeleteBtn.addEventListener("click", () => {
   if (currentGroupId) removeGroup(currentGroupId);
 });
@@ -2504,6 +2519,11 @@ rangeToDisplay.addEventListener("click", () => {
 });
 exportCsvBtn.addEventListener("click", openExportPicker);
 
+addEntityFabBtn.addEventListener("click", () => {
+  addEntityFabBtn.hidden = true;
+  addEntityBlock.hidden = false;
+  setTimeout(() => addEntityInput.focus(), 50);
+});
 addEntityBtn.addEventListener("click", handleAddEntity);
 addEntityInput.addEventListener("keydown", (e) => {
   if (e.key === "Enter") handleAddEntity();

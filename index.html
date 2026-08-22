@@ -155,7 +155,7 @@
           </svg>
         </button>
       </div>
-      <div class="tab-panel">
+      <div class="tab-panel" id="group-screen-panel">
         <div class="group-screen-hero">
           <div class="group-photo-wrap" id="group-photo-wrap">
             <button type="button" class="group-photo-btn" id="group-photo-btn" aria-label="שינוי תמונת קבוצה"></button>
@@ -277,6 +277,7 @@
           </div>
         </div>
 
+        <p class="split-label stat-row-caption">כמה ביזבזתי ב:</p>
         <div class="stat-row">
           <button type="button" class="stat-box stat-box-btn" id="month-stat-btn">
             <span class="stat-label" id="month-stat-label">—</span>
@@ -338,8 +339,9 @@
           </div>
         </div>
 
-        <div class="summary-block">
-          <h3>הוספה</h3>
+        <button type="button" class="add-entity-fab-btn" id="add-entity-fab-btn">+ הוספת מטייל או קבוצה</button>
+        <div class="summary-block" id="add-entity-block" hidden>
+          <h3>מה תרצה להוסיף?</h3>
           <div class="add-entity-row">
             <input type="text" id="add-entity-input" class="clean-input" placeholder="שם…" autocomplete="off" />
             <div class="entry-type-toggle" id="entity-type-toggle">

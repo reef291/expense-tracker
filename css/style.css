@@ -436,6 +436,14 @@ input[type="number"] {
   opacity: 0;
 }
 
+#group-screen-panel {
+  transition: opacity 0.18s ease;
+}
+
+#group-screen-panel.fading {
+  opacity: 0;
+}
+
 .chips-row {
   display: flex;
   flex-wrap: wrap;
@@ -1022,6 +1030,10 @@ input[type="number"] {
   font-size: 0.9rem;
   padding: 60px 0;
   line-height: 1.6;
+}
+
+.stat-row-caption {
+  margin: 0 4px 6px;
 }
 
 .stat-row {
@@ -1817,6 +1829,20 @@ input[type="number"] {
 
 .add-friend-row .clean-input {
   flex: 1;
+}
+
+.add-entity-fab-btn {
+  border: 1.5px dashed var(--accent);
+  background: var(--accent-light);
+  color: var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 14px 18px;
+  font-size: 0.92rem;
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+  width: 100%;
+  margin-bottom: 20px;
 }
 
 .add-friend-btn-wide {
