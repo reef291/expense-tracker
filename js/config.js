@@ -1,6 +1,6 @@
 // לאחר פריסת ה-Apps Script (backend/AppsScript.gs), הדביקו כאן את ה-URL שמתקבל (מסתיים ב-/exec).
 // אם משאירים ריק — האפליקציה עובדת רק על localStorage מקומי, בלי סנכרון.
-const DEFAULT_API_URL = "";
+const DEFAULT_API_URL = "https://script.google.com/macros/s/AKfycbyIWfvPr1dGgSI0FzP4fFF6etKRgH9pDAUSQdB8-qAmNCCPVDpONdy1jgX7rNpj8WlgeQ/exec";
 
 // אנשים שמצטרפים דרך קישור הזמנה (?join=...) מקבלים את ה-URL הזה אוטומטית,
 // כדי שהם יתחברו לאותו Google Sheet משותף בלי להעתיק אותו ידנית.
