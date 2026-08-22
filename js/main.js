@@ -217,7 +217,8 @@ let addReturnGroupId = null; // set when the add-flow was launched from a group'
 // ---------- helpers ----------
 
 function formatNumber(n) {
-  return (n ?? 0).toLocaleString("he-IL", { maximumFractionDigits: 2 });
+  const num = Number(n);
+  return (Number.isFinite(num) ? num : 0).toLocaleString("he-IL", { maximumFractionDigits: 2 });
 }
 
 // live thousand-separator formatting for plain-text number inputs (not
@@ -1790,10 +1791,12 @@ function personExpenseRowHtml(e, name) {
 
 function groupExpenseRowHtml(e) {
   const cat = getCategory(e.category);
+  const paidBy = e.paidBy || "me";
+  const paidVerb = paidBy === "me" ? "שילמתי" : "שילם/ה";
   return `
         <button type="button" class="activity-row group-expense-row" data-id="${e.id}">
           ${dateBadgeHtml(e.date)}
-          <span class="who">${cat.icon} ${e.note || cat.label} <span class="payer-note">· ${personLabel(e.paidBy || "me")} שילם/ה</span></span>
+          <span class="who">${cat.icon} ${e.note || cat.label} <span class="payer-note">· ${personLabel(paidBy)} ${paidVerb}</span></span>
           <span class="activity-meta">${formatILS(e.amountILS)}</span>
         </button>`;
 }

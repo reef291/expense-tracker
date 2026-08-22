@@ -38,17 +38,21 @@ export function myShare(e) {
 }
 
 function computeRawShare(e) {
-  if (!e.isGroup) return e.amountILS;
+  // Number(x) || 0 guards against a corrupt remote row (e.g. a #NUM! cell
+  // synced back as that literal string) turning into NaN and spreading
+  // through every total that adds this expense's share in
+  const amountILS = Number(e.amountILS) || 0;
+  if (!e.isGroup) return amountILS;
   if (e.participants?.length) {
     if (typeof e.participants[0] === "object") {
       return e.participants.find((p) => p.name === "me")?.amount ?? 0;
     }
     // legacy: plain names, equal split
     if (!e.participants.includes("me")) return 0;
-    return e.amountILS / e.participants.length;
+    return amountILS / e.participants.length;
   }
   // legacy fallback for group expenses recorded before named participants existed
-  return e.groupSize > 1 ? e.amountILS / e.groupSize : e.amountILS;
+  return e.groupSize > 1 ? amountILS / e.groupSize : amountILS;
 }
 
 // expenses marked excludeFromTotal still show up in the list, they just don't

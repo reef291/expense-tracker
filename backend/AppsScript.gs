@@ -101,9 +101,13 @@ function doPost(e) {
     country: body.country || "IL",
     category: body.category || "other",
     note: body.note || "",
-    amountLocal: Number(body.amountLocal),
+    // Number(x) || 0 guards against a missing/invalid amount ever landing as
+    // NaN — Sheets stores a NaN number as the #NUM! error, which then reads
+    // back as that literal string and shows up as "NaN" wherever the app
+    // does math with it
+    amountLocal: Number(body.amountLocal) || 0,
     currencyLocal: body.currencyLocal || "ILS",
-    amountILS: Number(body.amountILS),
+    amountILS: Number(body.amountILS) || 0,
     isGroup: isGroup,
     paidBy: isGroup ? (body.paidBy || "me") : "me",
     participants: isGroup ? (body.participants || "") : "",
