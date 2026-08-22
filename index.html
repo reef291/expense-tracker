@@ -159,6 +159,15 @@
         </div>
         <input type="file" accept="image/*" id="group-photo-input" hidden />
 
+        <div class="summary-block group-add-members-block">
+          <h3>הוספת מטיילים</h3>
+          <div class="add-entity-row">
+            <input type="text" id="group-add-member-input" class="clean-input" placeholder="שם מטייל חדש…" autocomplete="off" />
+            <button type="button" class="add-friend-btn" id="group-add-member-btn">הוספה</button>
+          </div>
+          <div class="chips-row" id="group-screen-add-existing-chips"></div>
+        </div>
+
         <div class="summary-block">
           <h3>חיובים</h3>
           <div id="group-screen-members"></div>
@@ -191,15 +200,6 @@
         <div class="summary-block" id="group-screen-activity-block" hidden>
           <h3>פעילות</h3>
           <div id="group-screen-activity"></div>
-        </div>
-
-        <div class="summary-block">
-          <h3>הוספת מטיילים</h3>
-          <div class="add-entity-row">
-            <input type="text" id="group-add-member-input" class="clean-input" placeholder="שם מטייל חדש…" autocomplete="off" />
-            <button type="button" class="add-friend-btn" id="group-add-member-btn">הוספה</button>
-          </div>
-          <div class="chips-row" id="group-screen-add-existing-chips"></div>
         </div>
       </div>
     </section>

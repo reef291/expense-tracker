@@ -1196,6 +1196,20 @@ input[type="number"] {
   padding: 0 4px;
 }
 
+/* a quiet utility row, not primary content — transparent background (no card,
+   unlike every data section below it) and a lighter, less prominent heading */
+.group-add-members-block {
+  background: none;
+  box-shadow: none;
+}
+
+.group-add-members-block h3 {
+  font-size: 0.76rem;
+  font-weight: 400;
+  color: var(--text-muted);
+  opacity: 0.85;
+}
+
 .summary-block-toggle {
   display: flex;
   align-items: center;
