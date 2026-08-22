@@ -1323,11 +1323,6 @@ input[type="number"] {
   margin: -14px -10px -14px -12px;
 }
 
-.summary-block.swapping {
-  transition: opacity 0.15s ease;
-  opacity: 0;
-}
-
 .summary-block-toggle {
   display: flex;
   align-items: center;

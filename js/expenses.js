@@ -1,5 +1,5 @@
 import { loadExpenses, loadSettlements, saveExpenses } from "./storage.js";
-import { fetchRemoteExpenses, isRemoteEnabled, postRemoteExpense } from "./remote.js";
+import { deleteRemoteExpense, fetchRemoteExpenses, isRemoteEnabled, postRemoteExpense } from "./remote.js";
 
 let expenses = loadExpenses();
 healBrokenSplits_();
@@ -132,9 +132,10 @@ export function renameParticipant(oldName, newName) {
   saveExpenses(expenses);
 }
 
-export function deleteExpense(id) {
+export async function deleteExpense(id) {
   expenses = expenses.filter((e) => e.id !== id);
   saveExpenses(expenses);
+  if (isRemoteEnabled()) await deleteRemoteExpense(id);
 }
 
 // Photos are stored locally only (base64 in localStorage) and never synced to

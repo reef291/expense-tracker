@@ -133,6 +133,8 @@ const groupScreenAddExistingChips = document.getElementById("group-screen-add-ex
 const groupAddMemberInput = document.getElementById("group-add-member-input");
 const groupAddMemberBtn = document.getElementById("group-add-member-btn");
 const groupInviteBtn = document.getElementById("group-invite-btn");
+const groupNoMembers = document.getElementById("group-no-members");
+const groupNoMembersAddBtn = document.getElementById("group-no-members-add-btn");
 const groupEditBtn = document.getElementById("group-edit-btn");
 const groupEditPanel = document.getElementById("group-edit-panel");
 const groupEditSaveBtn = document.getElementById("group-edit-save-btn");
@@ -1340,11 +1342,20 @@ function buildInviteLink(groupId, groupName) {
 
 function copyInviteLink(groupId, groupName, toastMessage = "קישור הועתק") {
   const link = buildInviteLink(groupId, groupName);
-  const inviteText = `הוזמנת להצטרף לקבוצת "${groupName}" באפליקציית "הוצאות הטיול" 🧳\n${link}`;
+  const inviteText = `הוזמנת להצטרף לקבוצת "${groupName}" באפליקציית "הוצאות הטיול" 🧳`;
+
+  // the phone's own share sheet beats copy-then-go-paste-somewhere — offer it
+  // whenever it's available and only fall back to clipboard if it isn't
+  if (navigator.share) {
+    navigator.share({ title: "הזמנה לקבוצה", text: inviteText, url: link }).catch(() => {});
+    return;
+  }
+
+  const fullText = `${inviteText}\n${link}`;
   navigator.clipboard
-    ?.writeText(inviteText)
+    ?.writeText(fullText)
     .then(() => showToast(toastMessage))
-    .catch(() => showInviteLinkSheet(inviteText));
+    .catch(() => showInviteLinkSheet(fullText));
 }
 
 // clipboard.writeText can reject silently in some mobile/PWA contexts, and
@@ -1710,13 +1721,15 @@ function openGroupScreen(groupId) {
     btn.addEventListener("click", () => removeMemberFromGroup(btn.dataset.name, groupId));
   });
 
-  // edit mode is a focused, condensed view — everything else (debts, balances,
-  // activity) steps aside while it's open instead of piling up underneath it,
-  // and comes back once "שמור" closes it.
+  // debts/balances/activity are meaningless with nobody in the group yet, and
+  // also step aside during edit mode so it stays a focused, condensed view —
+  // both come back once there's someone to show or "שמור" closes edit mode.
+  const stepAside = groupEditMode || memberNames.size === 0;
   [groupDebtsBlock, groupScreenBalancesBlock].forEach((block) => {
-    block.hidden = groupEditMode;
+    block.hidden = stepAside;
   });
-  if (groupEditMode) groupScreenActivityBlock.hidden = true;
+  if (stepAside) groupScreenActivityBlock.hidden = true;
+  groupNoMembers.hidden = groupEditMode || memberNames.size > 0;
 
   showScreen("group");
 }
@@ -2151,10 +2164,10 @@ function renderExpenseEditBody(e, cat, country) {
     </div>
 
     <div class="detail-rows">
-      <div class="detail-row">
+      <button type="button" class="detail-row detail-row-btn" id="detail-date-row">
         <span>תאריך</span>
-        <input type="date" id="detail-date-input" value="${e.date}" lang="he" />
-      </div>
+        <span>${formatDay(e.date)} ‹</span>
+      </button>
       <button type="button" class="detail-row detail-row-btn" id="detail-country-row">
         <span>מדינה</span>
         <span>${country.flag} ${country.name} ‹</span>
@@ -2272,6 +2285,15 @@ expenseDetailBody.addEventListener("click", (e) => {
       openExpenseDetail(id, previousScreen, true);
     });
   }
+  if (e.target.closest("#detail-date-row")) {
+    const id = currentExpenseId;
+    const current = getExpenseById(id);
+    openCalendarPicker(current?.date, (dateStr) => {
+      updateExpense(id, { date: dateStr });
+      render();
+      openExpenseDetail(id, previousScreen, true);
+    });
+  }
   if (e.target.closest("#detail-currency-btn")) {
     openCurrencySheet("detail");
   }
@@ -2287,9 +2309,7 @@ expenseDetailBody.addEventListener("change", (e) => {
   const id = currentExpenseId;
   if (!id) return;
 
-  if (e.target.id === "detail-date-input") {
-    updateExpense(id, { date: e.target.value });
-  } else if (e.target.id === "detail-location-input") {
+  if (e.target.id === "detail-location-input") {
     updateExpense(id, { location: e.target.value.trim() });
   } else if (e.target.id === "detail-note-input") {
     updateExpense(id, { note: e.target.value.trim() });
@@ -2461,6 +2481,10 @@ groupInviteBtn.addEventListener("click", () => {
   const group = loadGroups().find((g) => g.id === currentGroupId);
   if (group) copyInviteLink(group.id, group.name);
 });
+groupNoMembersAddBtn.addEventListener("click", () => {
+  toggleGroupEditMode(true);
+  setTimeout(() => groupAddMemberInput.focus(), 250);
+});
 groupEditBtn.addEventListener("click", () => toggleGroupEditMode(!groupEditMode));
 groupEditSaveBtn.addEventListener("click", () => toggleGroupEditMode(false));
 groupDeleteBtn.addEventListener("click", () => {
@@ -2590,15 +2614,27 @@ function initSectionReorder() {
   document.querySelectorAll("[data-swap-handle]").forEach((handle) => {
     handle.addEventListener("click", (e) => {
       e.stopPropagation();
-      groupsSection.classList.add("swapping");
-      friendsSection.classList.add("swapping");
-      setTimeout(() => {
-        if (groupsSection.nextElementSibling === friendsSection) container.insertBefore(friendsSection, groupsSection);
-        else container.insertBefore(groupsSection, friendsSection);
-        saveSettleSectionOrder([...container.querySelectorAll(".summary-block[data-section]")].map((s) => s.dataset.section));
-        groupsSection.classList.remove("swapping");
-        friendsSection.classList.remove("swapping");
-      }, 150);
+      // FLIP: read positions before the reorder, reorder instantly, then
+      // animate from the old position to the new one — so the two blocks
+      // visibly trade places instead of just popping into their new spot
+      const firstGroups = groupsSection.getBoundingClientRect();
+      const firstFriends = friendsSection.getBoundingClientRect();
+
+      if (groupsSection.nextElementSibling === friendsSection) container.insertBefore(friendsSection, groupsSection);
+      else container.insertBefore(groupsSection, friendsSection);
+      saveSettleSectionOrder([...container.querySelectorAll(".summary-block[data-section]")].map((s) => s.dataset.section));
+
+      [
+        [groupsSection, firstGroups],
+        [friendsSection, firstFriends],
+      ].forEach(([el, first]) => {
+        const last = el.getBoundingClientRect();
+        el.style.transition = "none";
+        el.style.transform = `translateY(${first.top - last.top}px)`;
+        el.getBoundingClientRect();
+        el.style.transition = "transform 0.28s cubic-bezier(0.22, 1, 0.36, 1)";
+        el.style.transform = "";
+      });
     });
   });
 }

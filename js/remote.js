@@ -37,6 +37,15 @@ export async function postRemoteExpense(expense) {
   });
 }
 
+export async function deleteRemoteExpense(id) {
+  if (!isRemoteEnabled()) return;
+  await fetch(getApiUrl(), {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({ action: "delete", id }),
+  });
+}
+
 // group invite links only actually work once this page is hosted somewhere
 // reachable by the person clicking the link — not on localhost.
 export async function fetchRemoteGroupMembers() {

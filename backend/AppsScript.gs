@@ -76,11 +76,26 @@ function doPost(e) {
     return jsonResponse_({ ok: true });
   }
 
+  if (body.action === "delete") {
+    const sheet = getSheet_();
+    const rows = sheet.getDataRange().getValues();
+    for (let i = 1; i < rows.length; i++) {
+      if (rows[i][0] === body.id) {
+        sheet.deleteRow(i + 1);
+        break;
+      }
+    }
+    return jsonResponse_({ ok: true });
+  }
+
   const sheet = getSheet_();
   const isGroup = Boolean(body.isGroup);
 
   const expense = {
-    id: Utilities.getUuid(),
+    // use the id the app already generated, not a new one — otherwise this
+    // row can never be matched again for a later delete, and re-syncing from
+    // the sheet creates a duplicate instead of recognizing the same expense
+    id: body.id || Utilities.getUuid(),
     date: body.date || new Date().toISOString().slice(0, 10),
     location: body.location || "",
     country: body.country || "IL",
