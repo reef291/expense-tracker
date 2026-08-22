@@ -154,7 +154,7 @@ const addFriendGroupSelect = document.getElementById("add-friend-group-select");
 const friendsListEl = document.getElementById("friends-list");
 const friendsEmptyEl = document.getElementById("friends-empty");
 const addEntityFabBtn = document.getElementById("add-entity-fab-btn");
-const addEntityBlock = document.getElementById("add-entity-block");
+const addEntitySheetBackdrop = document.getElementById("add-entity-sheet-backdrop");
 const addEntityInput = document.getElementById("add-entity-input");
 const addEntityBtn = document.getElementById("add-entity-btn");
 const entityTypeToggle = document.getElementById("entity-type-toggle");
@@ -1222,7 +1222,7 @@ function renderRange() {
     return;
   }
   const total = getTotalForRange(rangeFromValue, rangeToValue);
-  rangeResult.textContent = formatILS(total);
+  rangeResult.innerHTML = `הוצאת <strong>${formatILS(total)}</strong> בין התאריכים האלה`;
 }
 
 // ---------- settle-up (friends) tab ----------
@@ -1953,8 +1953,7 @@ function copyAmount(amount) {
 }
 
 function collapseAddEntityForm() {
-  addEntityBlock.hidden = true;
-  addEntityFabBtn.hidden = false;
+  addEntitySheetBackdrop.classList.remove("open");
 }
 
 function handleAddEntity() {
@@ -2520,9 +2519,11 @@ rangeToDisplay.addEventListener("click", () => {
 exportCsvBtn.addEventListener("click", openExportPicker);
 
 addEntityFabBtn.addEventListener("click", () => {
-  addEntityFabBtn.hidden = true;
-  addEntityBlock.hidden = false;
-  setTimeout(() => addEntityInput.focus(), 50);
+  addEntitySheetBackdrop.classList.add("open");
+  setTimeout(() => addEntityInput.focus(), 300);
+});
+addEntitySheetBackdrop.addEventListener("click", (e) => {
+  if (e.target === addEntitySheetBackdrop) collapseAddEntityForm();
 });
 addEntityBtn.addEventListener("click", handleAddEntity);
 addEntityInput.addEventListener("keydown", (e) => {

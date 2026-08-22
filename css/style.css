@@ -1102,6 +1102,16 @@ input[type="number"] {
   margin: 0;
 }
 
+.range-result {
+  font-size: 0.9rem;
+  color: var(--text);
+  margin: 10px 4px 0;
+}
+
+.range-result strong {
+  color: var(--accent);
+}
+
 .pace-budget-line {
   font-size: 0.82rem;
   font-weight: 600;

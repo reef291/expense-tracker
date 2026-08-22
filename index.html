@@ -296,7 +296,7 @@
             <span>עד</span>
             <button type="button" class="date-field-display" id="range-to-display">עד תאריך</button>
           </div>
-          <p class="stat-value" id="range-result"></p>
+          <p class="range-result" id="range-result"></p>
         </div>
 
         <button type="button" class="export-btn" id="export-csv-btn">⬇️ ייצוא טבלה</button>
@@ -340,18 +340,6 @@
         </div>
 
         <button type="button" class="add-entity-fab-btn" id="add-entity-fab-btn">+ הוספת מטייל או קבוצה</button>
-        <div class="summary-block" id="add-entity-block" hidden>
-          <h3>מה תרצה להוסיף?</h3>
-          <div class="add-entity-row">
-            <input type="text" id="add-entity-input" class="clean-input" placeholder="שם…" autocomplete="off" />
-            <div class="entry-type-toggle" id="entity-type-toggle">
-              <button type="button" class="entry-type-btn selected" data-type="friend">מטייל</button>
-              <button type="button" class="entry-type-btn" data-type="group">קבוצה</button>
-            </div>
-          </div>
-          <select id="add-friend-group-select" class="group-select"></select>
-          <button type="button" class="add-friend-btn add-friend-btn-wide" id="add-entity-btn">הוספה</button>
-        </div>
 
         <div class="summary-block">
           <button type="button" class="summary-block-toggle" id="groups-toggle" aria-expanded="true">
@@ -391,6 +379,22 @@
         <p class="sheet-title" id="sheet-title" hidden></p>
         <input type="text" id="currency-search" class="clean-input" placeholder="חפש מטבע…" autocomplete="off" />
         <div class="currency-list" id="currency-list"></div>
+      </div>
+    </div>
+
+    <div class="sheet-backdrop" id="add-entity-sheet-backdrop">
+      <div class="sheet">
+        <div class="sheet-handle"></div>
+        <p class="sheet-title">הוספת מטייל או קבוצה</p>
+        <div class="add-entity-row">
+          <input type="text" id="add-entity-input" class="clean-input" placeholder="שם…" autocomplete="off" />
+          <div class="entry-type-toggle" id="entity-type-toggle">
+            <button type="button" class="entry-type-btn selected" data-type="friend">מטייל</button>
+            <button type="button" class="entry-type-btn" data-type="group">קבוצה</button>
+          </div>
+        </div>
+        <select id="add-friend-group-select" class="group-select"></select>
+        <button type="button" class="add-friend-btn add-friend-btn-wide" id="add-entity-btn">הוספה</button>
       </div>
     </div>
 
