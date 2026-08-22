@@ -148,6 +148,7 @@
         <button type="button" class="icon-btn" id="group-screen-back-btn" aria-label="חזור">‹</button>
         <button type="button" class="person-screen-title-btn" id="group-screen-title">—</button>
         <input type="text" class="person-screen-title-btn person-screen-title-input" id="group-screen-title-input" hidden />
+        <button type="button" class="icon-btn icon-btn-muted" id="group-invite-btn" aria-label="קישור הזמנה">🔗</button>
         <button type="button" class="icon-btn icon-btn-muted" id="group-edit-btn" aria-label="עריכת קבוצה">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M12 20h9" />
@@ -178,12 +179,6 @@
           <button type="button" class="group-delete-btn" id="group-delete-btn">🗑️ מחיקת הקבוצה לצמיתות</button>
         </div>
 
-        <div class="summary-block" id="group-screen-charges-block">
-          <h3>חיובים</h3>
-          <div id="group-screen-members"></div>
-          <p id="group-screen-empty" class="empty-state" hidden></p>
-        </div>
-
         <div class="summary-block" id="group-debts-block">
           <button type="button" class="summary-block-toggle" id="group-debts-toggle" aria-expanded="false">
             <h3>💰 חובות בקבוצה</h3>
@@ -208,8 +203,15 @@
         </div>
 
         <div class="summary-block" id="group-screen-activity-block" hidden>
-          <h3>פעילות</h3>
-          <div id="group-screen-activity"></div>
+          <button type="button" class="summary-block-toggle" id="group-activity-toggle" aria-expanded="false">
+            <h3>פעילות</h3>
+            <span class="summary-block-chevron">▾</span>
+          </button>
+          <div class="summary-block-body collapsed" id="group-activity-body">
+            <div class="summary-block-body-inner">
+              <div id="group-screen-activity"></div>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -381,6 +383,7 @@
         <p class="sheet-title" id="sheet-title" hidden></p>
         <input type="text" id="currency-search" class="clean-input" placeholder="חפש מטבע…" autocomplete="off" />
         <div class="currency-list" id="currency-list"></div>
+        <button type="button" class="add-friend-btn add-friend-btn-wide" id="sheet-confirm-btn" hidden>אישור</button>
       </div>
     </div>
 

@@ -120,11 +120,8 @@ const friendsCountEl = document.getElementById("friends-count");
 const groupScreenBackBtn = document.getElementById("group-screen-back-btn");
 const groupScreenTitle = document.getElementById("group-screen-title");
 const groupScreenTitleInput = document.getElementById("group-screen-title-input");
-const groupScreenChargesBlock = document.getElementById("group-screen-charges-block");
-const groupScreenMembers = document.getElementById("group-screen-members");
 const groupScreenBalancesBlock = document.getElementById("group-screen-balances-block");
 const groupScreenBalances = document.getElementById("group-screen-balances");
-const groupScreenEmpty = document.getElementById("group-screen-empty");
 const groupDebtsBlock = document.getElementById("group-debts-block");
 const groupDebtsModeToggle = document.getElementById("group-debts-mode-toggle");
 const groupDebtsHint = document.getElementById("group-debts-hint");
@@ -135,6 +132,7 @@ const groupScreenActivity = document.getElementById("group-screen-activity");
 const groupScreenAddExistingChips = document.getElementById("group-screen-add-existing-chips");
 const groupAddMemberInput = document.getElementById("group-add-member-input");
 const groupAddMemberBtn = document.getElementById("group-add-member-btn");
+const groupInviteBtn = document.getElementById("group-invite-btn");
 const groupEditBtn = document.getElementById("group-edit-btn");
 const groupEditPanel = document.getElementById("group-edit-panel");
 const groupEditSaveBtn = document.getElementById("group-edit-save-btn");
@@ -186,6 +184,7 @@ const sheetBackdrop = document.getElementById("currency-sheet-backdrop");
 const sheetTitle = document.getElementById("sheet-title");
 const currencySearch = document.getElementById("currency-search");
 const currencyListEl = document.getElementById("currency-list");
+const sheetConfirmBtn = document.getElementById("sheet-confirm-btn");
 
 const MONTH_NAMES = [
   "ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני",
@@ -509,6 +508,8 @@ function openJoinNamePicker(groupName, existingNames) {
     currencyListEl.innerHTML = existingNames.length
       ? existingNames.map((n) => `<button type="button" class="picker-row join-name-row" data-name="${n}">${avatarHtml(n)} ${n}</button>`).join("")
       : `<p class="settle-empty">עדיין אין משתתפים רשומים בקבוצה — הקלד את השם שלך למטה</p>`;
+    sheetConfirmBtn.textContent = "המשך";
+    sheetConfirmBtn.hidden = false;
     sheetBackdrop.classList.add("open");
     setTimeout(() => currencySearch.focus(), 300);
   });
@@ -523,6 +524,7 @@ function resolveJoinName(name) {
 
 function closeCurrencySheet() {
   sheetBackdrop.classList.remove("open");
+  sheetConfirmBtn.hidden = true;
   if (joinNameResolve) {
     const resolve = joinNameResolve;
     joinNameResolve = null;
@@ -1544,6 +1546,9 @@ function addExistingFriendToGroup(name, groupId) {
 // ⏳ = open charge (still needs settling), ✓ = already settled, and a regular
 // expense just uses its own category icon (🍔 etc.) — no separate symbol needed
 function transferRowHtml(t, i) {
+  // settling only makes sense for a debt I'm actually a party to — a transfer
+  // between two other people in "כל החובות"/"קיזוז חכם" shows read-only
+  const isMine = t.from === "me" || t.to === "me";
   return `
         <div class="transfer-row">
           <div class="transfer-main">
@@ -1555,10 +1560,14 @@ function transferRowHtml(t, i) {
             </div>
             <span class="transfer-amount">${formatILS(t.amount)}</span>
           </div>
-          <div class="transfer-actions">
+          ${
+            isMine
+              ? `<div class="transfer-actions">
             <button type="button" class="settle-btn" data-i="${i}">לקזז</button>
             <button type="button" class="quickpay-btn" data-amount="${t.amount}">📋 העתקת הסכום</button>
-          </div>
+          </div>`
+              : ""
+          }
         </div>`;
 }
 
@@ -1655,27 +1664,12 @@ function openGroupScreen(groupId) {
   const friends = loadFriends();
   const memberNames = new Set(friends.filter((f) => f.groupId === groupId).map((f) => f.name));
   const groupBalances = getGroupBalances(memberNames);
-  // "חיובים" is my own to-do list, so only transfers I'm actually a party to belong
-  // there — a debt between two other members shows up in the balance list below
-  // instead, without a settle action (settling something that isn't yours makes no sense)
   const allTransfers = simplifyDebts(groupBalances);
-  const myTransfers = allTransfers.filter((t) => t.from === "me" || t.to === "me");
 
   groupScreenTitle.textContent = group.name;
   groupPhotoBtn.dataset.groupId = groupId;
   groupPhotoBtn.innerHTML = group.photo ? `<img src="${group.photo}" alt="" />` : `<span>${group.name.trim()[0] || "?"}</span>`;
   groupPhotoBtn.style.background = group.photo ? "none" : avatarColor(group.name);
-
-  renderTransferRows(groupScreenMembers, myTransfers, () => openGroupScreen(groupId));
-  if (memberNames.size === 0) {
-    groupScreenEmpty.textContent = "אין מטיילים בקבוצה הזו עדיין";
-    groupScreenEmpty.hidden = false;
-  } else if (myTransfers.length === 0) {
-    groupScreenEmpty.textContent = "אין לך חיובים פתוחים בקבוצה הזו 🎉";
-    groupScreenEmpty.hidden = false;
-  } else {
-    groupScreenEmpty.hidden = true;
-  }
 
   groupScreenBalances.innerHTML = ["me", ...memberNames]
     .map((name) => groupMemberBalanceRowHtml(name, groupBalances))
@@ -1715,10 +1709,10 @@ function openGroupScreen(groupId) {
     btn.addEventListener("click", () => removeMemberFromGroup(btn.dataset.name, groupId));
   });
 
-  // edit mode is a focused, condensed view — everything else (charges, debts,
-  // balances, activity) steps aside while it's open instead of piling up
-  // underneath it, and comes back once "שמור" closes it.
-  [groupScreenChargesBlock, groupDebtsBlock, groupScreenBalancesBlock].forEach((block) => {
+  // edit mode is a focused, condensed view — everything else (debts, balances,
+  // activity) steps aside while it's open instead of piling up underneath it,
+  // and comes back once "שמור" closes it.
+  [groupDebtsBlock, groupScreenBalancesBlock].forEach((block) => {
     block.hidden = groupEditMode;
   });
   if (groupEditMode) groupScreenActivityBlock.hidden = true;
@@ -2107,10 +2101,7 @@ function renderExpenseViewBody(e, cat, country) {
 
     <div class="detail-rows">
       <div class="detail-row"><span>תאריך</span><span>${formatDay(e.date)}</span></div>
-      <button type="button" class="detail-row detail-row-btn" id="detail-country-row">
-        <span>מדינה</span>
-        <span>${country.flag} ${country.name} ‹</span>
-      </button>
+      <div class="detail-row"><span>מדינה</span><span>${country.flag} ${country.name}</span></div>
       <button type="button" class="detail-row detail-row-btn" id="detail-category-row">
         <span>קטגוריה</span>
         <span>${cat.icon} ${cat.label} ‹</span>
@@ -2457,6 +2448,10 @@ function toggleGroupEditMode(nextMode) {
     panel.classList.remove("fading");
   }, 180);
 }
+groupInviteBtn.addEventListener("click", () => {
+  const group = loadGroups().find((g) => g.id === currentGroupId);
+  if (group) copyInviteLink(group.id, group.name);
+});
 groupEditBtn.addEventListener("click", () => toggleGroupEditMode(!groupEditMode));
 groupEditSaveBtn.addEventListener("click", () => toggleGroupEditMode(false));
 groupDeleteBtn.addEventListener("click", () => {
@@ -2598,10 +2593,12 @@ function initSectionReorder() {
         dragged.style.transform = `translateY(${dy}px)`;
         const otherRect = other.getBoundingClientRect();
         const draggedRect = dragged.getBoundingClientRect();
-        const draggedCenter = draggedRect.top + draggedRect.height / 2;
-        const otherCenter = otherRect.top + otherRect.height / 2;
-        const crossedDown = dy > 0 && draggedCenter > otherCenter;
-        const crossedUp = dy < 0 && draggedCenter < otherCenter;
+        // swap as soon as the leading edge passes the other block's edge, not
+        // once full centers cross — these blocks can be tall, and waiting for
+        // centers to cross made a small, deliberate drag feel like it wasn't
+        // doing anything
+        const crossedDown = dy > 0 && draggedRect.top > otherRect.top;
+        const crossedUp = dy < 0 && draggedRect.top < otherRect.top;
         if (crossedDown || crossedUp) {
           if (dragged.nextElementSibling === other) container.insertBefore(other, dragged);
           else container.insertBefore(dragged, other);
@@ -2706,6 +2703,12 @@ currencySearch.addEventListener("input", () => {
 });
 currencySearch.addEventListener("keydown", (e) => {
   if (sheetMode === "join" && e.key === "Enter") {
+    const name = currencySearch.value.trim();
+    if (name) resolveJoinName(name);
+  }
+});
+sheetConfirmBtn.addEventListener("click", () => {
+  if (sheetMode === "join") {
     const name = currencySearch.value.trim();
     if (name) resolveJoinName(name);
   }
