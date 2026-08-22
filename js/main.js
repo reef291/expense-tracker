@@ -552,7 +552,6 @@ function startNewExpense() {
   pendingGroupId = null;
   addReturnGroupId = null;
   amountInput.value = "";
-  resizeAmountInput(amountInput);
   amountContinue.disabled = true;
   selected = { code: context.currency, rate: context.rate };
   applySelectedCurrency();
@@ -586,7 +585,6 @@ entryTypeToggle.addEventListener("click", (e) => {
 function handleAmountInput() {
   const value = amountInput.value.replace(",", ".");
   amountContinue.disabled = !(Number(value) > 0);
-  resizeAmountInput(amountInput);
 }
 
 function handleAmountContinue() {
@@ -911,32 +909,41 @@ detailsPhotoInput.addEventListener("change", async () => {
 });
 
 async function handleDetailsDone() {
-  const isGroup = isGroupInput.checked;
+  // a slow/awaited remote sync used to leave this tappable long enough that
+  // impatient re-tapping created several duplicate expenses from one save
+  if (detailsDone.disabled) return;
+  detailsDone.disabled = true;
 
-  const amountILS = round2(draft.amountLocal * draft.rate);
-  const participants = isGroup
-    ? resolveParticipants(draft.participants, draft.splitMode, amountILS, draft.customAmounts, draft.customPercents)
-    : [];
+  try {
+    const isGroup = isGroupInput.checked;
 
-  await addExpense({
-    date: detailsDateInput.value || new Date().toISOString().slice(0, 10),
-    location: context.location,
-    country: context.countryCode,
-    category: draft.category,
-    note: noteInput.value,
-    amountLocal: draft.amountLocal,
-    currencyLocal: draft.currency,
-    amountILS,
-    isGroup,
-    paidBy: draft.paidBy,
-    participants,
-    excludeFromTotal: excludeInput.checked,
-    photo: draft.photo,
-    isIncome: Boolean(draft.isIncome),
-  });
+    const amountILS = round2(draft.amountLocal * draft.rate);
+    const participants = isGroup
+      ? resolveParticipants(draft.participants, draft.splitMode, amountILS, draft.customAmounts, draft.customPercents)
+      : [];
 
-  render();
-  exitAddFlow();
+    await addExpense({
+      date: detailsDateInput.value || new Date().toISOString().slice(0, 10),
+      location: context.location,
+      country: context.countryCode,
+      category: draft.category,
+      note: noteInput.value,
+      amountLocal: draft.amountLocal,
+      currencyLocal: draft.currency,
+      amountILS,
+      isGroup,
+      paidBy: draft.paidBy,
+      participants,
+      excludeFromTotal: excludeInput.checked,
+      photo: draft.photo,
+      isIncome: Boolean(draft.isIncome),
+    });
+
+    render();
+    exitAddFlow();
+  } finally {
+    detailsDone.disabled = false;
+  }
 }
 
 // ---------- shared: expense row rendering + swipe-to-delete ----------
@@ -2247,10 +2254,6 @@ function openExpenseDetail(id, cameFrom, keepEditMode = false) {
   expenseDetailBody.innerHTML = detailEditMode ? renderExpenseEditBody(e, cat, country) : renderExpenseViewBody(e, cat, country);
 
   if (detailEditMode) {
-    const amountInputEl = document.getElementById("detail-amount-input");
-    resizeAmountInput(amountInputEl);
-    amountInputEl.addEventListener("input", () => resizeAmountInput(amountInputEl));
-
     if (e.isGroup) {
       const paidByEl = document.getElementById("detail-paid-by-chips");
       const participantsEl = document.getElementById("detail-participants-chips");
@@ -2269,13 +2272,6 @@ function openExpenseDetail(id, cameFrom, keepEditMode = false) {
   }
 
   showScreen("expense");
-}
-
-function resizeAmountInput(el) {
-  // +1.2ch buffer: bold digits render wider than the "0" glyph "ch" is measured
-  // against, so too tight a fit clips the last character — this needs enough
-  // slack to survive real device font rendering, not just this browser's.
-  el.style.width = `${Math.max(1.5, el.value.length + 1.2)}ch`;
 }
 
 expenseDetailBody.addEventListener("click", (e) => {
@@ -2412,7 +2408,6 @@ function openFilterScreen(type, value) {
 
 initCategoryGrid();
 applySelectedCurrency();
-resizeAmountInput(amountInput);
 
 amountInput.addEventListener("input", handleAmountInput);
 amountInput.addEventListener("keydown", (e) => {

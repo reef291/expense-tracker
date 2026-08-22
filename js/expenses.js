@@ -115,7 +115,11 @@ export async function addExpense(input) {
   };
   expenses.push(expense);
   saveExpenses(expenses);
-  if (isRemoteEnabled()) await postRemoteExpense(expense);
+  // don't make the user wait on the network round-trip to see their own
+  // expense saved — it's already safe locally, so sync to the sheet in the
+  // background (a slow/failed sync here used to make "done" feel stuck long
+  // enough that impatient re-tapping created duplicate expenses)
+  if (isRemoteEnabled()) postRemoteExpense(expense).catch(() => {});
   return expense;
 }
 

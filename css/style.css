@@ -227,7 +227,12 @@ input[type="number"] {
 }
 
 .amount-input {
-  width: auto;
+  /* a fixed width, not sized to content: resizing per keystroke made the box
+     visibly jump while typing, and no fixed buffer around a ch-based fit
+     survives every device's font metrics without either clipping a digit or
+     looking cramped. Centering comes from the flex layout around it, not
+     from this box being tight — so a generous fixed width costs nothing. */
+  width: 6ch;
   max-width: 70vw;
   border: none;
   background: transparent;
@@ -763,8 +768,9 @@ input[type="number"] {
   font-weight: 700;
   letter-spacing: -0.01em;
   text-align: center;
-  width: 4ch;
-  min-width: 1.5ch;
+  /* fixed, generous width — see .amount-input for why this isn't sized to
+     content — .detail-amount-row already centers this via justify-content */
+  width: 6ch;
   color: var(--text);
 }
 
