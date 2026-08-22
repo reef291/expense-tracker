@@ -2038,8 +2038,14 @@ function renderExpenseViewBody(e, cat, country) {
 
     <div class="detail-rows">
       <div class="detail-row"><span>תאריך</span><span>${formatDay(e.date)}</span></div>
-      <div class="detail-row"><span>מדינה</span><span>${country.flag} ${country.name}</span></div>
-      <div class="detail-row"><span>קטגוריה</span><span>${cat.icon} ${cat.label}</span></div>
+      <button type="button" class="detail-row detail-row-btn" id="detail-country-row">
+        <span>מדינה</span>
+        <span>${country.flag} ${country.name} ‹</span>
+      </button>
+      <button type="button" class="detail-row detail-row-btn" id="detail-category-row">
+        <span>קטגוריה</span>
+        <span>${cat.icon} ${cat.label} ‹</span>
+      </button>
       <div class="detail-row"><span>מיקום</span><span>${e.location || "—"}</span></div>
       <div class="detail-row"><span>פירוט</span><span>${e.note || "—"}</span></div>
       <div class="detail-row"><span>קניה קבוצתית</span><span>${e.isGroup ? "כן" : "לא"}</span></div>
