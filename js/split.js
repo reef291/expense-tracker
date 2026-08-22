@@ -33,14 +33,26 @@ function round2(n) {
 // customAmounts/customPercents: { [name]: number } — only entries the user actually edited
 export function resolveParticipants(names, mode, total, customAmounts = {}, customPercents = {}) {
   if (!names.length) return [];
+  let amounts;
   if (mode === "amount") {
-    return names.map((name) => ({ name, amount: round2(customAmounts[name] ?? total / names.length) }));
+    amounts = names.map((name) => round2(customAmounts[name] ?? total / names.length));
+  } else if (mode === "percent") {
+    amounts = names.map((name) => round2(((customPercents[name] ?? 100 / names.length) / 100) * total));
+  } else {
+    amounts = names.map(() => round2(total / names.length));
   }
-  if (mode === "percent") {
-    return names.map((name) => {
-      const pct = customPercents[name] ?? 100 / names.length;
-      return { name, amount: round2((pct / 100) * total) };
-    });
+
+  // free-form custom splits can drift from the actual total (a percent split
+  // that doesn't quite reach 100%, a typo, plain rounding on an equal split
+  // that doesn't divide evenly) — force the last participant to absorb the
+  // difference so the saved amounts always sum to exactly `total`. Without
+  // this, one off-total expense silently breaks every balance downstream
+  // (getGroupBalances stops summing to zero, which makes simplifyDebts drop
+  // people from "קיזוז חכם" entirely instead of just rounding oddly).
+  const diff = round2(total - amounts.reduce((a, b) => a + b, 0));
+  if (Math.abs(diff) > 0.001) {
+    amounts[amounts.length - 1] = round2(amounts[amounts.length - 1] + diff);
   }
-  return names.map((name) => ({ name, amount: round2(total / names.length) }));
+
+  return names.map((name, i) => ({ name, amount: amounts[i] }));
 }
