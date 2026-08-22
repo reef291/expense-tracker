@@ -130,6 +130,10 @@ const groupScreenActivity = document.getElementById("group-screen-activity");
 const groupScreenAddExistingChips = document.getElementById("group-screen-add-existing-chips");
 const groupAddMemberInput = document.getElementById("group-add-member-input");
 const groupAddMemberBtn = document.getElementById("group-add-member-btn");
+const groupEditBtn = document.getElementById("group-edit-btn");
+const groupEditPanel = document.getElementById("group-edit-panel");
+const groupEditMembersList = document.getElementById("group-edit-members-list");
+const groupDeleteBtn = document.getElementById("group-delete-btn");
 const personScreenBackBtn = document.getElementById("person-screen-back-btn");
 const personScreenTitle = document.getElementById("person-screen-title");
 const personScreenTitleInput = document.getElementById("person-screen-title-input");
@@ -196,6 +200,7 @@ let currentFilter = null; // { type: 'country'|'month', value }
 let editingExpenseId = null; // set when the category screen is opened to edit an existing expense
 let currentGroupId = null; // the group screen currently being viewed, for the group's own "+" button
 let groupDebtsMode = "all"; // "all" = every real pairwise debt, "smart" = minimal-transfer plan
+let groupEditMode = false; // whether the group's own edit panel (add/remove members, delete group) is open
 let pendingGroupParticipants = null; // set by "+ add expense" from a group screen, consumed once when the group-purchase toggle turns on
 let pendingGroupId = null; // the group id paired with pendingGroupParticipants, pre-selects the details-screen group picker
 let addReturnGroupId = null; // set when the add-flow was launched from a group's own "+" button, so finishing/cancelling lands back there instead of home
@@ -1296,9 +1301,14 @@ function renameGroup(id, newName) {
 }
 
 function removeGroup(id) {
+  if (!confirm("למחוק את הקבוצה? החברים יישארו כמטיילים רגילים, וההוצאות וההיסטוריה שלהם יישמרו.")) return;
   saveGroups(loadGroups().filter((g) => g.id !== id));
   // members of a removed group become individuals again, not deleted
   saveFriends(loadFriends().map((f) => (f.groupId === id ? { ...f, groupId: null } : f)));
+  if (currentGroupId === id) {
+    currentGroupId = null;
+    showScreen("home");
+  }
   renderFriendsTab();
 }
 
@@ -1619,6 +1629,7 @@ function groupActivityRows(groupExpenses, memberNames) {
 function openGroupScreen(groupId) {
   const group = loadGroups().find((g) => g.id === groupId);
   if (!group) return;
+  if (currentGroupId !== groupId) groupEditMode = false;
   currentGroupId = groupId;
 
   const friends = loadFriends();
@@ -1678,7 +1689,29 @@ function openGroupScreen(groupId) {
     chip.addEventListener("click", () => addExistingFriendToGroup(chip.dataset.name, groupId));
   });
 
+  groupEditPanel.hidden = !groupEditMode;
+  groupEditMembersList.innerHTML = [...memberNames].map((name) => groupEditMemberRowHtml(name)).join("");
+  groupEditMembersList.querySelectorAll(".friend-row-remove").forEach((btn) => {
+    btn.addEventListener("click", () => removeMemberFromGroup(btn.dataset.name, groupId));
+  });
+
   showScreen("group");
+}
+
+function groupEditMemberRowHtml(name) {
+  return `
+        <div class="group-edit-member-row">
+          <span class="who">${avatarHtml(name)} ${personLabel(name)}</span>
+          <button type="button" class="friend-row-remove" data-name="${name}" aria-label="הסר מהקבוצה">✕</button>
+        </div>`;
+}
+
+// unassigns a member from this group without deleting them — they become an
+// ungrouped friend again, exactly like removing the whole group does for
+// everyone, just scoped to one person.
+function removeMemberFromGroup(name, groupId) {
+  saveFriends(loadFriends().map((f) => (f.name === name && f.groupId === groupId ? { ...f, groupId: null } : f)));
+  openGroupScreen(groupId);
 }
 
 function expenseInvolves(e, name) {
@@ -2368,6 +2401,13 @@ function handleGroupAddMember() {
 groupAddMemberBtn.addEventListener("click", handleGroupAddMember);
 groupAddMemberInput.addEventListener("keydown", (e) => {
   if (e.key === "Enter") handleGroupAddMember();
+});
+groupEditBtn.addEventListener("click", () => {
+  groupEditMode = !groupEditMode;
+  if (currentGroupId) openGroupScreen(currentGroupId);
+});
+groupDeleteBtn.addEventListener("click", () => {
+  if (currentGroupId) removeGroup(currentGroupId);
 });
 
 groupScreenTitle.addEventListener("click", () => {

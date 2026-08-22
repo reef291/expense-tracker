@@ -148,7 +148,12 @@
         <button type="button" class="icon-btn" id="group-screen-back-btn" aria-label="חזור">‹</button>
         <button type="button" class="person-screen-title-btn" id="group-screen-title">—</button>
         <input type="text" class="person-screen-title-btn person-screen-title-input" id="group-screen-title-input" hidden />
-        <span class="screen-top-spacer"></span>
+        <button type="button" class="icon-btn icon-btn-muted" id="group-edit-btn" aria-label="עריכת קבוצה">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 20h9" />
+            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z" />
+          </svg>
+        </button>
       </div>
       <div class="tab-panel">
         <div class="group-screen-hero">
@@ -159,13 +164,15 @@
         </div>
         <input type="file" accept="image/*" id="group-photo-input" hidden />
 
-        <div class="summary-block group-add-members-block">
-          <h3>הוספת מטיילים</h3>
+        <div class="summary-block group-add-members-block" id="group-edit-panel" hidden>
+          <h3>עריכת קבוצה</h3>
           <div class="add-entity-row">
             <input type="text" id="group-add-member-input" class="clean-input" placeholder="שם מטייל חדש…" autocomplete="off" />
             <button type="button" class="add-friend-btn" id="group-add-member-btn">הוספה</button>
           </div>
           <div class="chips-row" id="group-screen-add-existing-chips"></div>
+          <div class="group-edit-members-list" id="group-edit-members-list"></div>
+          <button type="button" class="destructive-btn" id="group-delete-btn">מחק קבוצה</button>
         </div>
 
         <div class="summary-block">

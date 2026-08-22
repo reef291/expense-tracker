@@ -1210,6 +1210,24 @@ input[type="number"] {
   opacity: 0.85;
 }
 
+.group-edit-members-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 10px 0;
+}
+
+.group-edit-member-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: var(--card);
+  border-radius: var(--radius-sm);
+  padding: 8px 14px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
 .summary-block-toggle {
   display: flex;
   align-items: center;
